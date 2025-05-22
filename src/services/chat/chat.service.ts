@@ -81,7 +81,7 @@ class ChatServiceImpl implements ChatService {
 
     const now = new Date();
     const session: ChatSession = {
-      id: `session-${Date.now()}`,
+      id: `session-${Date.now()}-{${Math.random().toString(36).substring(2)}`,
       userId,
       title: title || `Chat ${now.toLocaleDateString()}`,
       createdAt: now,
