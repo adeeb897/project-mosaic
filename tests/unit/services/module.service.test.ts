@@ -2,7 +2,12 @@
  * Unit tests for Module Service
  */
 
-import { getModuleService, Module, ModuleType } from '../../../src/services/module/module.service';
+import {
+  getModuleService,
+  resetModuleService,
+  Module,
+  ModuleType,
+} from '../../../src/services/module/module.service';
 
 // Mock the logger
 jest.mock('../../../src/utils/logger', () => ({
@@ -19,6 +24,9 @@ describe('ModuleService', () => {
   let testModule: Module;
 
   beforeEach(async () => {
+    // Reset the module service before each test
+    resetModuleService();
+
     // Create a test module for each test
     testModule = await moduleService.install({
       name: 'Test Module',

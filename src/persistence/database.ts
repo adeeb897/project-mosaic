@@ -2,6 +2,7 @@
  * Database module for Project Mosaic
  *
  * This module provides functions to interact with the database.
+ * It re-exports the database service and repositories for easy access.
  */
 
 import mongoose from 'mongoose';
@@ -133,3 +134,6 @@ export const getDatabaseStatus = (): { connected: boolean; status: string } => {
     status,
   };
 };
+
+// Re-export everything from the persistence layer
+export * from './index';

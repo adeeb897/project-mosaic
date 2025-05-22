@@ -36,6 +36,7 @@ export interface ModuleService {
   uninstall(id: string): Promise<boolean>;
   enable(id: string): Promise<boolean>;
   disable(id: string): Promise<boolean>;
+  reset(): void; // Add reset method for testing
 }
 
 /**
@@ -43,6 +44,14 @@ export interface ModuleService {
  */
 class ModuleServiceImpl implements ModuleService {
   private modules: Module[] = [];
+
+  /**
+   * Reset the module service (for testing)
+   */
+  reset(): void {
+    logger.debug('Resetting module service');
+    this.modules = [];
+  }
 
   /**
    * Find all modules
@@ -172,6 +181,14 @@ class ModuleServiceImpl implements ModuleService {
 
 // Create singleton instance
 const moduleServiceInstance = new ModuleServiceImpl();
+
+/**
+ * Reset module service (for testing)
+ */
+export const resetModuleService = (): void => {
+  logger.debug('Resetting module service');
+  moduleServiceInstance.reset();
+};
 
 /**
  * Initialize module service
