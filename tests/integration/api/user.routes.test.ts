@@ -9,21 +9,25 @@ import { UserStatus } from '../../../src/types';
 import { generateMockUser, generateId } from '../../utils/mock-data-generator';
 import { generateTestToken } from '../../utils/test-utils';
 
+// Define a type for our mock user
+interface MockUser {
+  id: string;
+  username: string;
+  email: string;
+  status?: UserStatus;
+  [key: string]: unknown;
+}
+
 // Mock the database module
 jest.mock('../../../src/persistence/database', () => {
   // Store mock data in memory for the duration of the tests
-  // Define a type for our mock user
-  interface MockUser {
-    id: string;
-    username: string;
-    email: string;
-    status?: UserStatus;
-    [key: string]: unknown;
-  }
-
   const users: Record<string, MockUser> = {};
 
   return {
+    // Function to clear all users (for testing)
+    __clearAllUsers: () => {
+      Object.keys(users).forEach(key => delete users[key]);
+    },
     getCollection: jest.fn().mockImplementation((collectionName: string) => {
       if (collectionName === 'users') {
         return {
@@ -56,7 +60,11 @@ jest.mock('../../../src/persistence/database', () => {
               sort: () => ({
                 skip: (skip: number) => ({
                   limit: (limit: number) => ({
-                    toArray: async () => filteredUsers.slice(skip, skip + limit),
+                    toArray: async () => {
+                      // Make sure we're only returning the users that match the query
+                      // and respecting pagination
+                      return filteredUsers.slice(skip, skip + limit);
+                    },
                   }),
                 }),
               }),
@@ -189,8 +197,12 @@ jest.mock('../../../src/api/middleware/auth.middleware', () => ({
 }));
 
 describe('User API Routes', () => {
-  beforeEach(() => {
+  beforeEach(async () => {
     jest.clearAllMocks();
+
+    // Clear the mock database before each test
+    const mockDb = await import('../../../src/persistence/database');
+    (mockDb as any).__clearAllUsers();
   });
 
   describe('GET /api/users/:id', () => {
