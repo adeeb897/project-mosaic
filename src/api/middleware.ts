@@ -21,12 +21,8 @@ export const setupMiddleware = (app: Express): void => {
   const limiter = rateLimit({
     windowMs: 15 * 60 * 1000, // 15 minutes
     max: 100, // limit each IP to 100 requests per windowMs
-    // Using any to bypass type checking for now
-    // In a real project, we would update the @types/express-rate-limit package
-    ...({
-      standardHeaders: true,
-      legacyHeaders: false,
-    } as any),
+    standardHeaders: true, // Return rate limit info in the `RateLimit-*` headers
+    legacyHeaders: false, // Disable the `X-RateLimit-*` headers
     message: 'Too many requests from this IP, please try again later',
   });
   app.use('/api', limiter);
@@ -60,7 +56,7 @@ export class ApiError extends Error {
  * Async handler to catch errors in async route handlers
  */
 export const asyncHandler =
-  (fn: (req: Request, res: Response, next: NextFunction) => Promise<any>) =>
+  (fn: (req: Request, res: Response, next: NextFunction) => Promise<unknown>) =>
   (req: Request, res: Response, next: NextFunction): void => {
     Promise.resolve(fn(req, res, next)).catch(next);
   };

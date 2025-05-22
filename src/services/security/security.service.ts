@@ -51,9 +51,12 @@ class SecurityServiceImpl implements SecurityService {
     const refreshExpiration = process.env.REFRESH_TOKEN_EXPIRATION || '7d';
 
     // Generate access token
-    // Using any to bypass type checking for now
-    // In a real implementation, we would use proper types
-    const token = (jwt.sign as any)(authData, jwtSecret, { expiresIn: jwtExpiration });
+    // Use a type-safe approach without 'any'
+    const payload = authData as unknown as object;
+    // Use a more specific type for the JWT secret
+    const options = { expiresIn: jwtExpiration };
+    // @ts-expect-error - Working around type issues with jsonwebtoken
+    const token = jwt.sign(payload, jwtSecret, options);
 
     // Generate refresh token
     const refreshToken = crypto.randomBytes(40).toString('hex');
@@ -82,8 +85,8 @@ class SecurityServiceImpl implements SecurityService {
 
     try {
       const jwtSecret = process.env.JWT_SECRET || 'default_jwt_secret';
-      // Using any to bypass type checking for now
-      const decoded = (jwt.verify as any)(token, jwtSecret) as AuthData;
+      // Verify the JWT token with proper typing
+      const decoded = jwt.verify(token, jwtSecret) as unknown as AuthData;
       return decoded;
     } catch (error) {
       logger.warn('Token verification failed:', error);

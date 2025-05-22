@@ -136,4 +136,4 @@ Contributions are welcome! Please see [CONTRIBUTING.md](CONTRIBUTING.md) for det
 
 ## License
 
-This project is licensed under the GNU GBL-3.0 LICENSE - see the [LICENSE](LICENSE) file for details.
+This project is licensed under the GNU GPL-3.0 LICENSE - see the [LICENSE](LICENSE) file for details.
