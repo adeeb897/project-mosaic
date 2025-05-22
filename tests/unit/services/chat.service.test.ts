@@ -236,7 +236,11 @@ describe('ChatService', () => {
       const originalUpdatedAt = testSession.updatedAt;
 
       // Wait a bit to ensure timestamp difference
-      await new Promise(resolve => setTimeout(resolve, 10));
+      await new Promise(resolve => {
+        const timer = setTimeout(resolve, 10);
+        // Ensure the timer doesn't keep the process alive
+        timer.unref();
+      });
 
       // Act
       await chatService.addMessage({
@@ -288,7 +292,11 @@ describe('ChatService', () => {
       const originalUpdatedAt = sessionBeforeDelete!.updatedAt;
 
       // Wait a bit to ensure timestamp difference
-      await new Promise(resolve => setTimeout(resolve, 10));
+      await new Promise(resolve => {
+        const timer = setTimeout(resolve, 10);
+        // Ensure the timer doesn't keep the process alive
+        timer.unref();
+      });
 
       // Act
       await chatService.deleteMessage(message.id);

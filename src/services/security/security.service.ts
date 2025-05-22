@@ -143,9 +143,11 @@ class SecurityServiceImpl implements SecurityService {
         // Schedule cleanup of revoked token
         const expiresIn = decoded.exp * 1000 - Date.now();
         if (expiresIn > 0) {
-          setTimeout(() => {
+          const timer = setTimeout(() => {
             this.revokedTokens.delete(token);
           }, expiresIn);
+          // Ensure the timer doesn't keep the process alive
+          timer.unref();
         } else {
           // Token already expired, no need to store it
           this.revokedTokens.delete(token);
