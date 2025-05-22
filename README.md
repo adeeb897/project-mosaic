@@ -1,211 +1,139 @@
 # Project Mosaic
 
-## Overview
+A modular platform with extensible architecture for building, configuring, and deploying AI assistants with customizable personalities, tools, and capabilities.
 
-Project Mosaic is an innovative AI chat/agent interface designed for the average user, focusing on accessibility, customization, and community sharing. The platform implements a modular architecture that supports various types of extensions including personality modules, tool integrations via MCP (Model Context Protocol), and A2A (Agent-to-Agent) communication capabilities.
+## Architecture
 
-This project aims to create an intuitive, accessible AI interface that empowers everyday users to customize their AI assistant experience through modules, while fostering a community where users can share and discover new functionalities. Project Mosaic prioritizes future-proofing to accommodate the rapidly evolving AI landscape, supporting multiple modalities and emerging protocols.
+Project Mosaic is built with a modular architecture that allows for easy extension and customization. The main components are:
 
-## Key Features
+- **Client Application Layer**: React-based frontend for user interaction
+- **API Gateway Layer**: Express-based API gateway for handling requests
+- **Service Layer**: Core business logic services
+- **Module & Integration Framework**: Framework for managing modules and integrations
+- **External Integration Layer**: Connectors for external services and APIs
+- **Persistence Layer**: Database and storage services
 
-- **Intuitive User Interface**: Simple, approachable design for users of all technical abilities
-- **Modular Framework**: Support for various types of modules that extend functionality
-  - Personality Modules: Define AI behavior, tone, expertise areas
-  - Tool Modules: Add capabilities like web search, calculators, etc.
-  - Agent Modules: Connect to specialized agents for specific tasks
-  - Theme Modules: Customize UI appearance
-- **Module Marketplace**: Community platform for sharing and discovering modules
-- **Interoperability**: Support for industry-standard protocols (MCP, A2A, Agent File Format)
-- **User-Created Content**: Tools for users to create, test, and publish their own modules
-- **Profile System**: Ability to save and switch between different AI configurations
-- **Security & Privacy**: Robust system for vetting modules and protecting user data
-- **Multimodal Support**: Flexible framework for different input and output modalities
-- **Future-Proof Design**: Abstraction layers and extensible architecture to adapt to evolving technologies
+For more details, see the [detailed architecture document](modularai-detailed-architecture.md).
 
-## System Architecture
+## Features
 
-ModularAI follows a modular, layered architecture:
+- **Modular Design**: Easily extend and customize the platform with modules
+- **Personality Modules**: Create and configure AI personalities
+- **Tool Modules**: Add tools and capabilities to your AI assistants
+- **Agent Modules**: Connect with external AI agents
+- **Protocol Support**: Support for MCP (Model Context Protocol) and A2A (Agent-to-Agent) protocols
+- **Multi-Modal Support**: Handle text, voice, image, and other modalities
+- **Profile System**: Create and manage AI assistant profiles
+- **Event System**: Flexible event-based architecture
 
-```
-┌───────────────────────────────────────────────────────────────┐
-│                       User Interface Layer                     │
-└───────────────────────────────────────┬───────────────────────┘
-                                       │
-┌───────────────────────────────────────┴───────────────────────┐
-│                     Application Core Layer                     │
-│  ┌─────────────┐  ┌─────────────┐  ┌─────────────────────┐   │
-│  │ User Mgmt   │  │ Module Mgmt │  │ Config/Profile Mgmt │   │
-│  └─────────────┘  └─────────────┘  └─────────────────────┘   │
-└───────────────────────────────────────────┬───────────────────┘
-                                           │
-┌───────────────────────────────────────────┴───────────────────┐
-│                        Module Layer                            │
-│  ┌─────────────┐  ┌─────────────┐  ┌─────────────┐  ┌──────┐  │
-│  │ Personality │  │    Tools    │  │   Agents    │  │ ...  │  │
-│  └─────────────┘  └─────────────┘  └─────────────┘  └──────┘  │
-└───────────────────────────────────────────┬───────────────────┘
-                                           │
-┌───────────────────────────────────────────┴───────────────────┐
-│                     Integration Layer                          │
-│  ┌─────────────┐  ┌─────────────┐  ┌─────────────────────┐   │
-│  │ MCP Adapter │  │ A2A Adapter │  │ Agent File Adapter  │   │
-│  └─────────────┘  └─────────────┘  └─────────────────────┘   │
-└───────────────────────────────────────────┬───────────────────┘
-                                           │
-┌───────────────────────────────────────────┴───────────────────┐
-│                    External Systems                            │
-│  LLMs, Knowledge Bases, APIs, Other Agents, Services, etc.     │
-└───────────────────────────────────────────────────────────────┘
-```
+## Prerequisites
 
-## Project Structure
-
-```
-project-mosaic/
-├── client/                  # Frontend application
-│   ├── public/              # Static assets
-│   ├── src/                 # Application source code
-│   │   ├── components/      # React components
-│   │   ├── hooks/           # Custom React hooks
-│   │   ├── store/           # Redux state management
-│   │   ├── services/        # API and service integration
-│   │   ├── modalities/      # Input/output modality handlers
-│   │   └── utils/           # Utility functions
-│   └── tests/               # Frontend tests
-├── server/                  # Backend application
-│   ├── src/                 # Server source code
-│   │   ├── api/             # API endpoints
-│   │   ├── controllers/     # Request handlers
-│   │   ├── models/          # Data models
-│   │   ├── services/        # Business logic
-│   │   ├── integration/     # External service integration
-│   │   ├── modules/         # Module management
-│   │   └── utils/           # Utility functions
-│   └── tests/               # Backend tests
-├── core/                    # Shared core functionality
-│   ├── module-framework/    # Module system core
-│   ├── protocols/           # Protocol implementations
-│   └── schema/              # Shared data schemas
-├── docs/                    # Documentation
-│   ├── architecture/        # Architecture documentation
-│   ├── modules/             # Module development guides
-│   └── protocols/           # Protocol specifications
-├── examples/                # Example modules and integrations
-│   ├── personality-modules/ # Example personality modules
-│   ├── tool-modules/        # Example tool modules
-│   └── agent-modules/       # Example agent modules
-└── scripts/                 # Development and deployment scripts
-```
+- Node.js 18+
+- MongoDB 6+
+- Redis 7+
+- Docker and Docker Compose (optional, for containerized setup)
 
 ## Getting Started
-
-### Prerequisites
-
-- Node.js (v16 or higher)
-- MongoDB (v5 or higher)
-- Redis (v6 or higher)
-- Docker (for containerized deployment)
 
 ### Installation
 
 1. Clone the repository:
+
    ```bash
    git clone https://github.com/your-organization/project-mosaic.git
    cd project-mosaic
    ```
 
 2. Install dependencies:
-   ```bash
-   # Install server dependencies
-   cd server
-   npm install
 
-   # Install client dependencies
-   cd ../client
+   ```bash
    npm install
    ```
 
 3. Set up environment variables:
    ```bash
-   # In server directory
    cp .env.example .env
-   # Edit .env file with your configuration
+   # Edit .env with your configuration
    ```
 
-4. Start development servers:
-   ```bash
-   # Start server (from server directory)
-   npm run dev
+### Development
 
-   # Start client (from client directory)
-   npm run dev
-   ```
+Start the development server:
 
-5. Access the application at `http://localhost:3000`
+```bash
+npm run dev
+```
 
-### Development Workflow
+Or using Docker Compose:
 
-1. Use feature branches with the format `feature/[feature-name]`
-2. Write tests for new functionality
-3. Ensure linting and formatting pass with `npm run lint`
+```bash
+docker-compose up
+```
+
+### Building
+
+Build the project:
+
+```bash
+npm run build
+```
+
+### Testing
+
+Run tests:
+
+```bash
+npm test
+```
+
+### Production
+
+Start the production server:
+
+```bash
+npm start
+```
+
+Or using Docker:
+
+```bash
+docker build -t project-mosaic .
+docker run -p 3000:3000 project-mosaic
+```
+
+## Project Structure
+
+```
+project-mosaic/
+├── config/             # Configuration files
+├── docs/               # Documentation
+├── scripts/            # Utility scripts
+├── src/                # Source code
+│   ├── api/            # API gateway and routes
+│   ├── client/         # Frontend client application
+│   ├── framework/      # Core framework components
+│   ├── integrations/   # External integrations
+│   ├── persistence/    # Database and storage
+│   ├── services/       # Business logic services
+│   └── utils/          # Utility functions
+└── tests/              # Test files
+```
 
 ## Module Development
 
-ModularAI supports various types of modules to extend functionality. Each module follows a standardized structure:
+Project Mosaic supports several types of modules:
 
-```
-module/
-  ├── manifest.json      # Module metadata and dependencies
-  ├── schema.json        # Property schema definition with versioning
-  ├── config.json        # Default configuration values
-  ├── migrations/        # Configuration schema migrations
-  │   └── v1-to-v2.js    # Migration scripts between versions
-  ├── assets/            # Module-specific assets
-  │   ├── icons/
-  │   └── media/
-  ├── code/              # Implementation code (if applicable)
-  │   ├── main.js        # Main module logic
-  │   ├── modalities/    # Modality-specific handlers
-  │   └── ui/            # Custom UI components
-  ├── tests/             # Test suite for the module
-  │   ├── unit/
-  │   └── integration/
-  └── docs/              # Documentation
-      ├── README.md      # Module documentation
-      └── examples/      # Usage examples
-```
+- **Personality Modules**: Define AI personality traits and behaviors
+- **Tool Modules**: Add capabilities and tools to AI assistants
+- **Agent Modules**: Connect with external AI agents
+- **Modality Modules**: Handle different input/output modalities
 
-For detailed module development instructions, see the Module Development Guide (to be developed).
+For more information on developing modules, see the [Module Development Guide](docs/module-development.md).
 
-## Protocol Integration
+## Contributing
 
-ModularAI integrates with several protocols to enable interoperability with external systems:
-
-### Model Context Protocol (MCP)
-
-MCP enables the platform to connect AI models with external tools and data sources.
-
-### Agent-to-Agent (A2A) Protocol
-
-A2A enables communication between Project Mosaic and other agent systems.
-
-### Agent File (.af) Format
-
-The platform supports the Agent File format for agent serialization and sharing.
-
-## Project Roadmap
-
-The project is organized into the following phases:
-
-1. **Foundation (Months 1-2)**: Core infrastructure, basic application framework, and essential services
-2. **Module System (Months 3-4)**: Module framework, personality modules, and tool modules
-3. **Integration & Expansion (Months 5-6)**: Protocol adapters, agent modules, and modality support
-4. **Advanced Features (Months 7-8)**: Enhanced module capabilities, advanced modalities, and marketplace features
-5. **Polish & Launch (Months 9-10)**: Quality improvements, documentation, and production deployment
-6. **Future-Proofing & Evolution (Ongoing)**: Extensibility framework, feature flags, and migration tools
-
-For detailed information about project implementation, see Project Action Plan and Project Tasks documents.
+Contributions are welcome! Please see [CONTRIBUTING.md](CONTRIBUTING.md) for details.
 
 ## License
 
-This project is licensed under the MIT License - see the LICENSE file for details.
+This project is licensed under the GNU GPL-3.0 LICENSE - see the [LICENSE](LICENSE) file for details.
