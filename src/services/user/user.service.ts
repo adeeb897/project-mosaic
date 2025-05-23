@@ -7,6 +7,7 @@
 
 import { getCollection } from '../../persistence/database';
 import { UserStatus } from '../../types';
+import { ApiError } from '../../api/middleware';
 
 /**
  * User creation data interface
@@ -49,14 +50,14 @@ export class UserService {
    *
    * @param userId The user ID
    * @returns The user object
-   * @throws Error if user is not found
+   * @throws ApiError if user is not found
    */
   async getUser(userId: string): Promise<Record<string, unknown>> {
     const collection = getCollection(this.collectionName);
     const user = await collection.findOne({ id: userId });
 
     if (!user) {
-      throw new Error('User not found');
+      throw new ApiError(404, 'User not found');
     }
 
     return user as Record<string, unknown>;
@@ -67,7 +68,7 @@ export class UserService {
    *
    * @param userData The user data
    * @returns The created user
-   * @throws Error if username or email already exists
+   * @throws ApiError if username or email already exists
    */
   async createUser(userData: UserCreationData): Promise<Record<string, unknown>> {
     const collection = getCollection(this.collectionName);
@@ -75,13 +76,13 @@ export class UserService {
     // Check if username already exists
     const existingUsername = await collection.findOne({ username: userData.username });
     if (existingUsername) {
-      throw new Error('Username already exists');
+      throw new ApiError(400, 'Username already exists');
     }
 
     // Check if email already exists
     const existingEmail = await collection.findOne({ email: userData.email });
     if (existingEmail) {
-      throw new Error('Email already exists');
+      throw new ApiError(400, 'Email already exists');
     }
 
     // Create user object
@@ -90,6 +91,7 @@ export class UserService {
       id: '', // Will be set after insertion
       username: userData.username,
       email: userData.email,
+      passwordHash: userData.password, // Store as passwordHash
       displayName: userData.displayName || userData.username,
       createdAt: now,
       updatedAt: now,
@@ -111,6 +113,7 @@ export class UserService {
         },
       ],
       status: UserStatus.ACTIVE,
+      failedLoginAttempts: 0,
     };
 
     // Insert user
@@ -133,7 +136,7 @@ export class UserService {
    * @param userId The user ID
    * @param updateData The update data
    * @returns The updated user
-   * @throws Error if user is not found
+   * @throws ApiError if user is not found
    */
   async updateUser(userId: string, updateData: UserUpdateData): Promise<Record<string, unknown>> {
     const collection = getCollection(this.collectionName);
@@ -141,7 +144,7 @@ export class UserService {
     // Check if user exists
     const user = await collection.findOne({ id: userId });
     if (!user) {
-      throw new Error('User not found');
+      throw new ApiError(404, 'User not found');
     }
 
     // Prepare update object
@@ -174,7 +177,7 @@ export class UserService {
    *
    * @param userId The user ID
    * @returns True if successful
-   * @throws Error if user is not found
+   * @throws ApiError if user is not found
    */
   async deleteUser(userId: string): Promise<boolean> {
     const collection = getCollection(this.collectionName);
@@ -182,7 +185,7 @@ export class UserService {
     // Check if user exists
     const user = await collection.findOne({ id: userId });
     if (!user) {
-      throw new Error('User not found');
+      throw new ApiError(404, 'User not found');
     }
 
     // Mark user as deleted

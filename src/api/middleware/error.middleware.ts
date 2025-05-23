@@ -22,7 +22,7 @@ export const errorHandler = (
   if (err instanceof ApiError) {
     res.status(err.statusCode).json({
       status: 'error',
-      message: err.message,
+      error: err.message,
     });
     return;
   }
@@ -31,7 +31,7 @@ export const errorHandler = (
   if (err.name === 'ValidationError') {
     res.status(400).json({
       status: 'error',
-      message: 'Validation Error',
+      error: 'Validation Error',
       details: err.message,
     });
     return;
@@ -41,7 +41,7 @@ export const errorHandler = (
   if (err.name === 'JsonWebTokenError') {
     res.status(401).json({
       status: 'error',
-      message: 'Invalid token',
+      error: 'Invalid token',
     });
     return;
   }
@@ -49,7 +49,7 @@ export const errorHandler = (
   if (err.name === 'TokenExpiredError') {
     res.status(401).json({
       status: 'error',
-      message: 'Token expired',
+      error: 'Token expired',
     });
     return;
   }
@@ -65,7 +65,7 @@ export const errorHandler = (
     if ((err as MongoDBError).code === 11000) {
       res.status(409).json({
         status: 'error',
-        message: 'Duplicate key error',
+        error: 'Duplicate key error',
       });
       return;
     }
@@ -74,6 +74,6 @@ export const errorHandler = (
   // Default to 500 server error
   res.status(500).json({
     status: 'error',
-    message: process.env.NODE_ENV === 'production' ? 'Internal server error' : err.message,
+    error: process.env.NODE_ENV === 'production' ? 'Internal server error' : err.message,
   });
 };

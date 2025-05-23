@@ -2,9 +2,11 @@
  * API Routes for Project Mosaic
  */
 
-import express, { Request, Response, NextFunction } from 'express';
+import express, { Request, Response } from 'express';
 import { UserService } from '../services/user/user.service';
 import { authenticate, authorize } from './middleware/auth.middleware';
+import { authRoutes } from './routes/auth.routes';
+import { errorHandler } from './middleware/error.middleware';
 
 // Create Express app
 const app = express();
@@ -85,20 +87,23 @@ router.delete(
   }
 );
 
-// Mount router
+// Mount auth routes
+app.use('/api/v1/auth', authRoutes);
+
+// Mount other API routes
 app.use('/api', router);
 
-// Error handling middleware
-app.use((err: Error, req: Request, res: Response, _next: NextFunction) => {
-  console.error(err.stack);
-  res.status(500).json({ error: 'Internal server error' });
-});
+// Add error handling middleware (must be last)
+app.use(errorHandler);
 
 /**
  * Setup routes for the Express application
  * @param app Express application instance
  */
 export const setupRoutes = (app: express.Express): void => {
+  // Mount auth routes
+  app.use('/api/v1/auth', authRoutes);
+
   // Mount the API router
   app.use('/api', router);
 
@@ -111,6 +116,9 @@ export const setupRoutes = (app: express.Express): void => {
   app.use((_req: Request, res: Response) => {
     res.status(404).json({ error: 'Route not found' });
   });
+
+  // Add error handling middleware (must be last)
+  app.use(errorHandler);
 };
 
 export { app };
