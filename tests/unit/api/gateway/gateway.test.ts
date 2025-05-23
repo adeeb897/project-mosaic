@@ -2,6 +2,7 @@
  * API Gateway Tests
  */
 
+import { Request, Response, NextFunction, RequestHandler } from 'express';
 import express from 'express';
 import request from 'supertest';
 import { ApiGateway, createApiGateway, GatewayError, ErrorCode } from '../../../../src/api/gateway';
@@ -19,11 +20,11 @@ jest.mock('../../../../src/utils/logger', () => ({
 
 // Mock auth middleware
 jest.mock('../../../../src/api/middleware/auth.middleware', () => ({
-  authenticate: jest.fn((req: any, res: any, next: any) => {
+  authenticate: jest.fn((req: Request, res: Response, next: NextFunction) => {
     req.user = { id: 'test-user', email: 'test@example.com', roles: ['user'] };
     next();
   }),
-  authorize: jest.fn(() => (req: any, res: any, next: any) => next()),
+  authorize: jest.fn(() => (req: Request, res: Response, next: NextFunction) => next()),
 }));
 
 describe('API Gateway', () => {
@@ -62,6 +63,50 @@ describe('API Gateway', () => {
         gateway.use((req, res, next) => next());
       }).toThrow('Gateway must be initialized before adding custom middleware');
     });
+
+    it('should allow adding middleware after initialization', () => {
+      gateway.initialize();
+      expect(() => {
+        gateway.use((req, res, next) => next());
+      }).not.toThrow();
+    });
+
+    it('should allow route-specific validation', () => {
+      const routes = new Map<string, RequestHandler>();
+      routes.set('/api/test', (req, res) => {
+        res.json({ message: 'test' });
+      });
+
+      const validationSchema = {
+        body: {
+          name: 'string',
+          age: 'number',
+        },
+      };
+
+      gateway.initialize(routes);
+      gateway.addValidation('/api/test', validationSchema);
+      request(app).post('/api/test').send({ name: 'John', age: '30' });
+    });
+
+    it('should throw error when adding routes before initialization', () => {
+      expect(() => {
+        gateway.addValidation('/api/test', {});
+      }).toThrow('Gateway must be initialized before adding validation');
+    });
+
+    it('should throw error when protecting routes before initialization', () => {
+      expect(() => {
+        gateway.protectAdminRoute('/admin');
+      }).toThrow('Gateway must be initialized before protecting routes');
+    });
+
+    it('should allow protecting routes after initialization', () => {
+      gateway.initialize();
+      expect(() => {
+        gateway.protectAdminRoute('/admin');
+      }).not.toThrow();
+    });
   });
 
   describe('Configuration', () => {
@@ -69,6 +114,23 @@ describe('API Gateway', () => {
       const config = gateway.getConfig();
       expect(config.monitoring.enableMetrics).toBe(true);
       expect(config.validation.enableRequestValidation).toBe(true);
+    });
+
+    it('should apply custom configuration', () => {
+      const customGateway = createApiGateway(app, {
+        validation: {
+          enableRequestValidation: false,
+          enableResponseValidation: false,
+          strictMode: true,
+          customValidators: {
+            customValidator: value => value === 'valid',
+          },
+        },
+      });
+      customGateway.initialize();
+      const config = customGateway.getConfig();
+      expect(config.monitoring.enableMetrics).toBe(true);
+      expect(config.validation.enableRequestValidation).toBe(false);
     });
 
     it('should merge custom configuration', () => {
@@ -160,7 +222,7 @@ describe('API Gateway', () => {
   describe('Rate Limiting', () => {
     beforeEach(() => {
       // Add a test route
-      const routes = new Map<string, express.RequestHandler>();
+      const routes = new Map<string, RequestHandler>();
       routes.set('/api/test', (req, res) => {
         res.json({ message: 'test' });
       });
@@ -179,7 +241,7 @@ describe('API Gateway', () => {
   describe('Request Context', () => {
     beforeEach(() => {
       // Add a test route that uses context
-      const routes = new Map<string, express.RequestHandler>();
+      const routes = new Map<string, RequestHandler>();
       routes.set('/test/context', (req, res) => {
         res.json({
           requestId: req.context?.requestId,
@@ -202,13 +264,23 @@ describe('API Gateway', () => {
   describe('Error Handling', () => {
     beforeEach(() => {
       // Add test routes that throw errors
-      const routes = new Map<string, express.RequestHandler>();
+      const routes = new Map<string, RequestHandler>();
       routes.set('/test/gateway-error', (req, res, next) => {
         const error = new GatewayError(ErrorCode.VALIDATION_ERROR, 'Test validation error', 400);
         next(error);
       });
       routes.set('/test/generic-error', (req, res, next) => {
         const error = new Error('Generic error');
+        next(error);
+      });
+      routes.set('/test/validation-error', (req, res, next) => {
+        const error = new Error('Validation error');
+        error.name = 'ValidationError';
+        next(error);
+      });
+      routes.set('/test/jwt-error', (req, res, next) => {
+        const error = new Error('JWT error');
+        error.name = 'JsonWebTokenError';
         next(error);
       });
       gateway.initialize(routes);
@@ -239,12 +311,30 @@ describe('API Gateway', () => {
       expect(response.body.error.code).toBe('NOT_FOUND');
       expect(response.body.error.message).toBe('Route not found');
     });
+
+    it('should handle validation errors', async () => {
+      const response = await request(app).get('/test/validation-error');
+
+      expect(response.status).toBe(400);
+      expect(response.body.success).toBe(false);
+      expect(response.body.error.code).toBe('VALIDATION_ERROR');
+      expect(response.body.error.message).toBe('Validation failed');
+    });
+
+    it('should handle JWT errors', async () => {
+      const response = await request(app).get('/test/jwt-error');
+
+      expect(response.status).toBe(401);
+      expect(response.body.success).toBe(false);
+      expect(response.body.error.code).toBe('UNAUTHORIZED');
+      expect(response.body.error.message).toBe('Invalid or expired token');
+    });
   });
 
   describe('Authentication', () => {
     beforeEach(() => {
       // Add protected route
-      const routes = new Map<string, express.RequestHandler>();
+      const routes = new Map<string, RequestHandler>();
       routes.set('/api/v1/protected', (req, res) => {
         res.json({ user: req.user });
       });
