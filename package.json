@@ -53,6 +53,7 @@
     "react": "^18.2.0",
     "react-dom": "^18.2.0",
     "redis": "^4.6.8",
+    "uuid": "11.1.0",
     "winston": "^3.10.0",
     "ws": "^8.14.1",
     "zod": "^3.22.2"
@@ -77,6 +78,7 @@
     "@types/redis": "^4.0.10",
     "@types/redis-mock": "0.17.3",
     "@types/supertest": "6.0.3",
+    "@types/uuid": "10.0.0",
     "@types/winston": "^2.4.4",
     "@types/ws": "^8.18.1",
     "@typescript-eslint/eslint-plugin": "^6.6.0",
