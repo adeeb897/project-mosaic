@@ -4,7 +4,7 @@
   "description": "A modular platform with extensible architecture for AI components",
   "main": "dist/index.js",
   "scripts": {
-    "start": "node dist/index.js",
+    "start": "node -r tsconfig-paths/register dist/index.js",
     "dev": "nodemon",
     "dev:debug": "nodemon --inspect",
     "build": "tsc",
@@ -19,7 +19,7 @@
     "test:integration:coverage": "jest --config jest.config.integration.js --coverage",
     "test:ci": "npm run test:unit:coverage && npm run test:integration:coverage",
     "lint": "eslint . --ext .ts,.tsx",
-    "format": "prettier --write \"src/**/*.{ts,tsx}\"",
+    "format": "prettier --write \"src/**/*.{ts,tsx,css,scss}\"",
     "prepare": "husky install",
     "clean": "rimraf dist coverage"
   },
@@ -52,6 +52,7 @@
     "morgan": "1.10.0",
     "react": "^18.2.0",
     "react-dom": "^18.2.0",
+    "react-router-dom": "7.6.0",
     "redis": "^4.6.8",
     "uuid": "11.1.0",
     "winston": "^3.10.0",
