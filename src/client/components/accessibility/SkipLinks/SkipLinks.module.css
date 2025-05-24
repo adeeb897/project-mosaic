@@ -1,0 +1,80 @@
+.skipLinks {
+  position: absolute;
+  top: 0;
+  left: 0;
+  z-index: var(--z-tooltip);
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-xs);
+}
+
+.skipLink {
+  position: absolute;
+  top: -100px;
+  left: var(--spacing-sm);
+  padding: var(--spacing-sm) var(--spacing-md);
+  background-color: var(--color-primary);
+  color: var(--color-text-inverse);
+  text-decoration: none;
+  border-radius: var(--border-radius-md);
+  font-weight: var(--font-weight-medium);
+  font-size: var(--font-size-sm);
+  white-space: nowrap;
+  transition: top var(--transition-fast);
+  border: 2px solid transparent;
+}
+
+.skipLink:focus {
+  top: var(--spacing-sm);
+  outline: none;
+  border-color: var(--color-text-inverse);
+}
+
+.skipLink:hover:focus {
+  background-color: var(--color-primary-hover);
+}
+
+/* High contrast mode */
+[data-theme='high-contrast'] .skipLink,
+[data-theme='high-contrast-dark'] .skipLink {
+  background-color: var(--color-primary);
+  color: var(--color-text-inverse);
+  border: 2px solid var(--color-text-inverse);
+}
+
+[data-theme='high-contrast'] .skipLink:focus,
+[data-theme='high-contrast-dark'] .skipLink:focus {
+  background-color: var(--color-text-inverse);
+  color: var(--color-primary);
+  border-color: var(--color-primary);
+}
+
+/* Enhanced focus mode */
+[data-enhanced-focus='true'] .skipLink:focus {
+  outline: 3px solid var(--color-text-inverse);
+  outline-offset: 2px;
+  box-shadow:
+    0 0 0 1px var(--color-primary),
+    0 0 0 4px var(--color-text-inverse);
+}
+
+/* Reduced motion */
+@media (prefers-reduced-motion: reduce) {
+  .skipLink {
+    transition: none;
+  }
+}
+
+/* Screen reader optimizations */
+@media (prefers-reduced-motion: reduce) {
+  .skipLink:focus {
+    animation: none;
+  }
+}
+
+/* Print styles */
+@media print {
+  .skipLinks {
+    display: none;
+  }
+}

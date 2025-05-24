@@ -1,0 +1,66 @@
+.appContainer {
+  display: flex;
+  flex-direction: column;
+  min-height: 100vh;
+  background-color: var(--color-background);
+  color: var(--color-text-primary);
+}
+
+.mainLayout {
+  display: flex;
+  flex: 1;
+  overflow: hidden;
+}
+
+.loadingContainer {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  min-height: 100vh;
+  gap: var(--spacing-lg);
+  background-color: var(--color-background);
+  color: var(--color-text-primary);
+}
+
+.loadingContainer p {
+  font-size: var(--font-size-lg);
+  color: var(--color-text-secondary);
+}
+
+.loginContainer {
+  min-height: 100vh;
+  background-color: var(--color-background);
+  color: var(--color-text-primary);
+}
+
+/* Responsive adjustments */
+@media (max-width: 768px) {
+  .mainLayout {
+    flex-direction: column;
+  }
+}
+
+/* High contrast mode adjustments */
+[data-theme='high-contrast'] .appContainer,
+[data-theme='high-contrast-dark'] .appContainer {
+  border: 2px solid var(--color-border);
+}
+
+/* Focus management */
+.appContainer:focus-within {
+  outline: none;
+}
+
+/* Print styles */
+@media print {
+  .appContainer {
+    background: white !important;
+    color: black !important;
+  }
+
+  .loadingContainer,
+  .loginContainer {
+    display: none !important;
+  }
+}

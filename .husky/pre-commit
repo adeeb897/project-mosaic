@@ -9,3 +9,7 @@ npx lint-staged
 # Run TypeScript type checking
 echo "Running TypeScript type checking..."
 npx tsc --noEmit
+
+# Run formatting
+echo "Running formatting..."
+npx run format
