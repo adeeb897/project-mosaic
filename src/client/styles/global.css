@@ -29,6 +29,29 @@
   --color-error: #dc2626;
   --color-info: #0284c7;
 
+  /* Chat-specific colors */
+  --user-color: #6366f1;
+  --assistant-color: #10b981;
+  --system-color: #f59e0b;
+  --secondary-color: #6b7280;
+  --success-color: #10b981;
+  --success-color-light: #d1fae5;
+  --warning-bg: #fef3c7;
+  --warning-border: #f59e0b;
+  --warning-text: #92400e;
+  --error-color: #dc2626;
+  --error-bg: #fef2f2;
+  --error-border: #fecaca;
+  --error-text: #dc2626;
+  --error-hover: #b91c1c;
+  --code-bg: rgba(0, 0, 0, 0.1);
+  --code-text: inherit;
+  --code-border: rgba(0, 0, 0, 0.1);
+  --code-block-bg: #f8f9fa;
+  --code-header-bg: #e9ecef;
+  --quote-bg: rgba(0, 0, 0, 0.05);
+  --bg-disabled: #9ca3af;
+
   /* Shadow */
   --shadow-sm: 0 1px 2px 0 rgb(0 0 0 / 0.05);
   --shadow-md: 0 4px 6px -1px rgb(0 0 0 / 0.1), 0 2px 4px -2px rgb(0 0 0 / 0.1);
@@ -90,6 +113,18 @@
   --header-height: 4rem;
   --sidebar-width: 16rem;
   --sidebar-width-collapsed: 4rem;
+
+  /* Variable aliases for chat components */
+  --bg-primary: var(--color-background);
+  --bg-secondary: var(--color-background-secondary);
+  --bg-hover: var(--color-background-tertiary);
+  --text-primary: var(--color-text-primary);
+  --text-secondary: var(--color-text-secondary);
+  --border-color: var(--color-border);
+  --primary-color: var(--color-primary);
+  --primary-hover: var(--color-primary-hover);
+  --primary-color-light: var(--color-primary-light);
+  --primary-color-alpha: rgba(37, 99, 235, 0.1);
 
   /* Breakpoints (for reference in JS) */
   --breakpoint-sm: 640px;
