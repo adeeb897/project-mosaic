@@ -8,9 +8,11 @@ import { SkipLinks } from '../../accessibility/SkipLinks/SkipLinks';
 import { LoadingSpinner } from '../../common/LoadingSpinner/LoadingSpinner';
 import styles from './AppContainer.module.css';
 
+import { ChatInterface } from '../../chat/ChatInterface/ChatInterface';
+
 // Placeholder components for routes
 const Dashboard = () => <div>Dashboard</div>;
-const Chat = () => <div>Chat Interface</div>;
+const Chat = () => <ChatInterface />;
 const Modules = () => <div>Module Management</div>;
 const Profiles = () => <div>Profile Management</div>;
 const Settings = () => <div>Settings</div>;
