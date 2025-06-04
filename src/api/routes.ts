@@ -6,6 +6,7 @@ import express, { Request, Response } from 'express';
 import { UserService } from '../services/user/user.service';
 import { authenticate, authorize } from './middleware/auth.middleware';
 import { authRoutes } from './routes/auth.routes';
+import moduleRegistryRoutes from './routes/module-registry.routes';
 import { errorHandler } from './middleware/error.middleware';
 
 // Create Express app
@@ -90,6 +91,9 @@ router.delete(
 // Mount auth routes
 app.use('/api/v1/auth', authRoutes);
 
+// Mount module registry routes
+app.use('/api/modules', moduleRegistryRoutes);
+
 // Mount other API routes
 app.use('/api', router);
 
@@ -103,6 +107,9 @@ app.use(errorHandler);
 export const setupRoutes = (app: express.Express): void => {
   // Mount auth routes
   app.use('/api/v1/auth', authRoutes);
+
+  // Mount module registry routes
+  app.use('/api/modules', moduleRegistryRoutes);
 
   // Mount the API router
   app.use('/api', router);
