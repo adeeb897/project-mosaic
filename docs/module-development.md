@@ -2,6 +2,25 @@
 
 This guide provides information on how to develop modules for the Project Mosaic platform.
 
+## Development Environment Setup
+
+Before developing modules, ensure you have the Project Mosaic development environment running:
+
+```bash
+npm run dev
+```
+
+This starts both the frontend and backend with hot reloading, allowing you to test your modules in real-time. For detailed setup instructions, see the [Development Setup Guide](./development-setup.md).
+
+### Module Development Workflow
+
+1. Start the development environment: `npm run dev`
+2. Create your module in the appropriate directory
+3. Register your module with the system
+4. Test your module through the web interface
+5. Run automated tests: `npm run test:unit`
+6. Debug using browser DevTools or Node.js debugger
+
 ## Module Types
 
 Project Mosaic supports several types of modules:

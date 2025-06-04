@@ -5,9 +5,14 @@
   "main": "dist/index.js",
   "scripts": {
     "start": "node -r tsconfig-paths/register dist/index.js",
-    "dev": "nodemon",
+    "dev": "concurrently \"npm run dev:client\" \"npm run dev:server\" --names \"CLIENT,SERVER\" --prefix-colors \"cyan,yellow\"",
+    "dev:setup": "node scripts/dev-setup.js",
+    "dev:server": "nodemon",
+    "dev:client": "node scripts/build-client.js --watch",
     "dev:debug": "nodemon --inspect",
-    "build": "tsc",
+    "build": "npm run build:server && npm run build:client",
+    "build:server": "tsc",
+    "build:client": "node scripts/build-client.js",
     "test": "jest --passWithNoTests",
     "test:unit": "jest --config jest.config.unit.js",
     "test:integration": "jest --config jest.config.integration.js",
@@ -21,7 +26,7 @@
     "lint": "eslint . --ext .ts,.tsx",
     "format": "prettier --write \"src/**/*.{ts,tsx,css,scss}\"",
     "prepare": "husky install",
-    "clean": "rimraf dist coverage"
+    "clean": "rimraf dist coverage public/js public/css"
   },
   "repository": {
     "type": "git",
@@ -84,6 +89,8 @@
     "@types/ws": "^8.18.1",
     "@typescript-eslint/eslint-plugin": "^6.6.0",
     "@typescript-eslint/parser": "^6.6.0",
+    "concurrently": "^8.2.2",
+    "esbuild": "^0.19.4",
     "eslint": "^8.48.0",
     "eslint-config-prettier": "^9.0.0",
     "eslint-plugin-prettier": "^5.0.0",

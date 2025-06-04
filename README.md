@@ -58,17 +58,34 @@ For more details, see the [detailed architecture document](modularai-detailed-ar
 
 ### Development
 
-Start the development server:
+Start both frontend and backend development servers with hot reloading:
 
 ```bash
 npm run dev
 ```
 
-Or using Docker Compose:
+This will:
+- Start the React frontend with esbuild (fast builds ~50-100ms)
+- Start the Express backend with nodemon (auto-restart)
+- Serve the application at http://localhost:3000
+
+#### Development Scripts
+
+| Command | Description |
+|---------|-------------|
+| `npm run dev` | Start both frontend and backend in development mode |
+| `npm run dev:setup` | Automated setup with dependency installation |
+| `npm run dev:server` | Start only the backend server |
+| `npm run dev:client` | Start only the frontend build process |
+| `npm run dev:debug` | Start backend with debugging enabled |
+
+#### Alternative: Docker Compose
 
 ```bash
 docker-compose up
 ```
+
+For detailed development setup instructions, see the [Development Setup Guide](docs/development-setup.md).
 
 ### Building
 
