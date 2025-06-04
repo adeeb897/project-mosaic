@@ -11,8 +11,34 @@ import { errorHandler } from './middleware/error.middleware';
  * @param app Express application instance
  */
 export const setupMiddleware = (app: Express): void => {
-  // Security middleware
-  app.use(helmet());
+  // Security middleware with CSP configuration for development
+  app.use(
+    helmet({
+      contentSecurityPolicy: {
+        directives: {
+          defaultSrc: ["'self'"],
+          scriptSrc: [
+            "'self'",
+            "'unsafe-inline'", // Allow inline scripts for development
+            "'unsafe-eval'", // Allow eval for development (React DevTools, etc.)
+          ],
+          styleSrc: ["'self'", "'unsafe-inline'"],
+          imgSrc: ["'self'", 'data:', 'https:'],
+          connectSrc: ["'self'", 'ws:', 'wss:'],
+          fontSrc: ["'self'", 'https:', 'data:'],
+          objectSrc: ["'none'"],
+          mediaSrc: ["'self'"],
+          frameSrc: ["'none'"],
+        },
+        // Disable CSP in development for easier debugging
+        ...(process.env.NODE_ENV === 'development' && { reportOnly: false }),
+      },
+      // Relax other helmet settings for development
+      ...(process.env.NODE_ENV === 'development' && {
+        crossOriginEmbedderPolicy: false,
+      }),
+    })
+  );
 
   // Request logging
   app.use(morgan('combined', { stream }));

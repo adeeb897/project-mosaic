@@ -112,9 +112,14 @@ export const setupRoutes = (app: express.Express): void => {
     res.status(200).json({ status: 'ok' });
   });
 
-  // Add 404 handler for undefined routes
-  app.use((_req: Request, res: Response) => {
-    res.status(404).json({ error: 'Route not found' });
+  // Serve React app for all non-API routes (SPA fallback)
+  app.get('*', (req: Request, res: Response) => {
+    // Only serve the React app for non-API routes
+    if (!req.path.startsWith('/api') && !req.path.startsWith('/health')) {
+      res.sendFile('index.html', { root: 'public' });
+    } else {
+      res.status(404).json({ error: 'Route not found' });
+    }
   });
 
   // Add error handling middleware (must be last)

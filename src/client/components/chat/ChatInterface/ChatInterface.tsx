@@ -1,7 +1,6 @@
 import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { useUser } from '../../../contexts/UserContext';
-import { getChatService } from '../../../../services/chat/chat.service';
-import { ChatMessage, ChatSession } from '../../../../services/chat/chat.service';
+import { chatApiService, ChatMessage, ChatSession } from '../../../services/api.service';
 import { ConversationList } from '../ConversationList/ConversationList';
 import { MessageDisplay } from '../MessageDisplay/MessageDisplay';
 import { InputPanel } from '../InputPanel/InputPanel';
@@ -18,7 +17,6 @@ export const ChatInterface: React.FC = () => {
   const [isSending, setIsSending] = useState(false);
   const [showContext, setShowContext] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
-  const chatService = getChatService();
 
   // Auto-scroll to bottom when new messages arrive
   const scrollToBottom = useCallback(() => {
@@ -32,18 +30,19 @@ export const ChatInterface: React.FC = () => {
 
       try {
         setIsLoading(true);
-        const userSessions = await chatService.getSessions(userState.user.id);
+        const userSessions = await chatApiService.getSessions(userState.user.id);
         setSessions(userSessions);
 
         // Auto-select most recent session or create new one
         if (userSessions.length > 0) {
           const mostRecent = userSessions.sort(
-            (a, b) => new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime()
+            (a: ChatSession, b: ChatSession) =>
+              new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime()
           )[0];
           setCurrentSession(mostRecent);
         } else {
           // Create default session
-          const newSession = await chatService.createSession(userState.user.id, 'New Chat');
+          const newSession = await chatApiService.createSession(userState.user.id, 'New Chat');
           setSessions([newSession]);
           setCurrentSession(newSession);
         }
@@ -55,7 +54,7 @@ export const ChatInterface: React.FC = () => {
     };
 
     loadSessions();
-  }, [userState.user, chatService]);
+  }, [userState.user]);
 
   // Load messages when session changes
   useEffect(() => {
@@ -63,7 +62,7 @@ export const ChatInterface: React.FC = () => {
       if (!currentSession) return;
 
       try {
-        const sessionMessages = await chatService.getMessages(currentSession.id);
+        const sessionMessages = await chatApiService.getMessages(currentSession.id);
         setMessages(sessionMessages);
         // Scroll to bottom after messages load
         setTimeout(scrollToBottom, 100);
@@ -73,7 +72,7 @@ export const ChatInterface: React.FC = () => {
     };
 
     loadMessages();
-  }, [currentSession, chatService, scrollToBottom]);
+  }, [currentSession, scrollToBottom]);
 
   // Handle session selection
   const handleSessionSelect = useCallback((session: ChatSession) => {
@@ -85,19 +84,19 @@ export const ChatInterface: React.FC = () => {
     if (!userState.user) return;
 
     try {
-      const newSession = await chatService.createSession(userState.user.id, 'New Chat');
+      const newSession = await chatApiService.createSession(userState.user.id, 'New Chat');
       setSessions(prev => [newSession, ...prev]);
       setCurrentSession(newSession);
     } catch (error) {
       console.error('Failed to create session:', error);
     }
-  }, [userState.user, chatService]);
+  }, [userState.user]);
 
   // Handle session deletion
   const handleDeleteSession = useCallback(
     async (sessionId: string) => {
       try {
-        await chatService.deleteSession(sessionId);
+        await chatApiService.deleteSession(sessionId);
         setSessions(prev => prev.filter(s => s.id !== sessionId));
 
         // If deleted session was current, switch to another or create new
@@ -114,7 +113,7 @@ export const ChatInterface: React.FC = () => {
         console.error('Failed to delete session:', error);
       }
     },
-    [currentSession, sessions, chatService, handleNewSession]
+    [currentSession, sessions, handleNewSession]
   );
 
   // Handle sending messages
@@ -126,7 +125,7 @@ export const ChatInterface: React.FC = () => {
         setIsSending(true);
 
         // Add user message
-        const userMessage = await chatService.addMessage({
+        const userMessage = await chatApiService.addMessage({
           sessionId: currentSession.id,
           content: content.trim(),
           role: 'user',
@@ -138,7 +137,7 @@ export const ChatInterface: React.FC = () => {
         // TODO: Integrate with AI service for response
         // For now, add a placeholder assistant response
         setTimeout(async () => {
-          const assistantMessage = await chatService.addMessage({
+          const assistantMessage = await chatApiService.addMessage({
             sessionId: currentSession.id,
             content: `I received your message: "${content.trim()}". This is a placeholder response.`,
             role: 'assistant',
@@ -155,21 +154,18 @@ export const ChatInterface: React.FC = () => {
         setIsSending(false);
       }
     },
-    [currentSession, chatService, scrollToBottom]
+    [currentSession, scrollToBottom]
   );
 
   // Handle message deletion
-  const handleDeleteMessage = useCallback(
-    async (messageId: string) => {
-      try {
-        await chatService.deleteMessage(messageId);
-        setMessages(prev => prev.filter(m => m.id !== messageId));
-      } catch (error) {
-        console.error('Failed to delete message:', error);
-      }
-    },
-    [chatService]
-  );
+  const handleDeleteMessage = useCallback(async (messageId: string) => {
+    try {
+      await chatApiService.deleteMessage(messageId);
+      setMessages(prev => prev.filter(m => m.id !== messageId));
+    } catch (error) {
+      console.error('Failed to delete message:', error);
+    }
+  }, []);
 
   if (isLoading) {
     return (
