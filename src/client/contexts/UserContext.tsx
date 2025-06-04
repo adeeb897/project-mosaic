@@ -92,6 +92,17 @@ export const UserProvider: React.FC<UserProviderProps> = ({ children }) => {
   useEffect(() => {
     const checkAuth = async () => {
       try {
+        // First, try to get user data without token (for development bypass)
+        let response = await fetch('/api/v1/auth/me');
+
+        if (response.ok) {
+          // Authentication bypass is working
+          const user = await response.json();
+          dispatch({ type: 'SET_USER', payload: user });
+          return;
+        }
+
+        // If that fails, try with token
         const token = localStorage.getItem('mosaic-auth-token');
         if (!token) {
           dispatch({ type: 'SET_LOADING', payload: false });
@@ -99,7 +110,7 @@ export const UserProvider: React.FC<UserProviderProps> = ({ children }) => {
         }
 
         // Validate token and get user data
-        const response = await fetch('/api/auth/me', {
+        response = await fetch('/api/v1/auth/me', {
           headers: {
             Authorization: `Bearer ${token}`,
           },
@@ -200,7 +211,7 @@ export const UserProvider: React.FC<UserProviderProps> = ({ children }) => {
 
     try {
       const token = localStorage.getItem('mosaic-auth-token');
-      const response = await fetch('/api/auth/me', {
+      const response = await fetch('/api/v1/auth/me', {
         headers: {
           Authorization: `Bearer ${token}`,
         },

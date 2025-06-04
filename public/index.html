@@ -2,12 +2,11 @@
 <html lang="en">
 <head>
   <meta charset="utf-8" />
-  <link rel="icon" href="%PUBLIC_URL%/favicon.ico" />
+  <link rel="icon" href="/favicon.ico" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <meta name="theme-color" content="#2563eb" />
   <meta name="description" content="Project Mosaic - A modular platform with extensible architecture for AI components" />
-  <link rel="apple-touch-icon" href="%PUBLIC_URL%/logo192.png" />
-  <link rel="manifest" href="%PUBLIC_URL%/manifest.json" />
+   <link rel="manifest" href="/manifest.json" />
 
   <!-- Preload critical fonts -->
   <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -22,6 +21,9 @@
   <meta http-equiv="X-XSS-Protection" content="1; mode=block">
 
   <title>Project Mosaic</title>
+
+  <!-- CSS Bundle -->
+  <link rel="stylesheet" href="/css/bundle.css">
 
   <!-- Critical CSS for preventing FOUC -->
   <style>
@@ -116,6 +118,9 @@
 
   <!-- React app root -->
   <div id="root"></div>
+
+  <!-- React application bundle -->
+  <script src="/js/index.js"></script>
 
   <!-- Theme detection script -->
   <script>

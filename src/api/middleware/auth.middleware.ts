@@ -31,6 +31,7 @@ const getAuthService = (): AuthService => {
 /**
  * Authenticate middleware
  * Verifies JWT token and sets user on request object
+ * Can be bypassed in development mode when BYPASS_AUTH_IN_DEV is enabled
  */
 export const authenticate = async (
   req: Request,
@@ -38,6 +39,24 @@ export const authenticate = async (
   next: NextFunction
 ): Promise<void> => {
   try {
+    // Check if authentication should be bypassed in development
+    const isDevelopment = process.env.NODE_ENV === 'development';
+    const bypassAuth = process.env.BYPASS_AUTH_IN_DEV === 'true';
+
+    if (isDevelopment && bypassAuth) {
+      // Set a mock user for development
+      req.user = {
+        id: 'dev-user-id',
+        email: 'dev@example.com',
+        roles: ['user', 'admin'], // Grant all roles for development
+      };
+      console.log('🔓 Authentication bypassed for development');
+      next();
+      return;
+    } else {
+      console.log('🔒 Authentication enabled');
+    }
+
     // Check for Authorization header
     const authHeader = req.headers.authorization;
     if (!authHeader || !authHeader.startsWith('Bearer ')) {
