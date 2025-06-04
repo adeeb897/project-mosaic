@@ -1,6 +1,7 @@
 const esbuild = require('esbuild');
 const path = require('path');
 const fs = require('fs');
+const crypto = require('crypto');
 
 const isWatch = process.argv.includes('--watch');
 const isDev = isWatch || process.env.NODE_ENV !== 'production';
@@ -37,8 +38,7 @@ const buildOptions = {
   loader: {
     '.tsx': 'tsx',
     '.ts': 'ts',
-    '.css': 'css',
-    '.scss': 'css',
+    '.css': 'text',
     '.png': 'file',
     '.jpg': 'file',
     '.jpeg': 'file',
@@ -88,14 +88,89 @@ const buildOptions = {
       },
     },
     {
-      name: 'css-plugin',
+      name: 'css-modules',
       setup(build) {
-        build.onLoad({ filter: /\.css$/ }, async (args) => {
-          const css = await fs.promises.readFile(args.path, 'utf8');
+        const cssModuleFilter = /\.module\.css$/;
+        const regularCssFilter = /\.css$/;
+        const cssModulesMap = new Map();
+        const regularCssMap = new Map();
+
+        // Handle CSS module imports
+        build.onResolve({ filter: cssModuleFilter }, (args) => {
           return {
-            contents: css,
-            loader: 'css',
+            path: path.resolve(args.resolveDir, args.path),
+            namespace: 'css-module',
           };
+        });
+
+        // Handle regular CSS imports
+        build.onResolve({ filter: regularCssFilter }, (args) => {
+          if (!args.path.endsWith('.module.css')) {
+            return {
+              path: path.resolve(args.resolveDir, args.path),
+              namespace: 'css-regular',
+            };
+          }
+        });
+
+        // Load and transform CSS modules
+        build.onLoad({ filter: /.*/, namespace: 'css-module' }, async (args) => {
+          const css = await fs.promises.readFile(args.path, 'utf8');
+          const hash = crypto.createHash('md5').update(args.path).digest('hex').substring(0, 5);
+          const moduleName = path.basename(args.path, '.module.css');
+
+          // Parse CSS and generate scoped class names
+          const classMap = {};
+          const scopedCss = css.replace(/\.([a-zA-Z][a-zA-Z0-9_-]*)/g, (match, className) => {
+            const scopedName = `${moduleName}__${className}___${hash}`;
+            classMap[className] = scopedName;
+            // Also add camelCase version if className contains dashes
+            if (className.includes('-')) {
+              const camelCase = className.replace(/-([a-z])/g, (_, letter) => letter.toUpperCase());
+              classMap[camelCase] = scopedName;
+            }
+            return `.${scopedName}`;
+          });
+
+          // Store the CSS for later extraction
+          cssModulesMap.set(args.path, scopedCss);
+
+          // Return JavaScript module that exports the class mappings
+          const js = `
+            const styles = ${JSON.stringify(classMap)};
+            export default styles;
+          `;
+
+          return {
+            contents: js,
+            loader: 'js',
+          };
+        });
+
+        // Load regular CSS files
+        build.onLoad({ filter: /.*/, namespace: 'css-regular' }, async (args) => {
+          const css = await fs.promises.readFile(args.path, 'utf8');
+          regularCssMap.set(args.path, css);
+
+          // Return empty module for regular CSS
+          return {
+            contents: 'export default {}',
+            loader: 'js',
+          };
+        });
+
+        // Extract all CSS at the end
+        build.onEnd(async () => {
+          const allCss = [
+            ...Array.from(regularCssMap.values()),
+            ...Array.from(cssModulesMap.values())
+          ].join('\n\n');
+
+          if (allCss.length > 0) {
+            const cssOutputPath = path.join(__dirname, '../public/css/bundle.css');
+            await fs.promises.writeFile(cssOutputPath, allCss);
+            console.log(`[CLIENT] Generated CSS bundle: bundle.css (${(allCss.length / 1024).toFixed(2)} KB)`);
+          }
         });
       },
     },
