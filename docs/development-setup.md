@@ -158,7 +158,88 @@ REDIS_URL=redis://localhost:6379
 JWT_SECRET=dev-secret-key-change-in-production
 ALLOWED_ORIGINS=http://localhost:3000,http://localhost:3001
 LOG_LEVEL=debug
+BYPASS_AUTH_IN_DEV=true
 ```
+
+### Authentication Bypass for Development
+
+For easier development and testing, authentication can be bypassed in development mode. This allows you to access all protected API endpoints and frontend routes without needing to authenticate.
+
+#### Configuration
+
+Authentication bypass is enabled by default in development with the following environment variable:
+
+```bash
+BYPASS_AUTH_IN_DEV=true
+```
+
+#### How It Works
+
+When authentication bypass is enabled:
+
+1. The `authenticate` middleware checks for development environment (`NODE_ENV=development`) and bypass flag (`BYPASS_AUTH_IN_DEV=true`)
+2. If both conditions are met, it skips JWT token validation
+3. A mock user is automatically set with the following properties:
+   ```javascript
+   {
+     id: 'dev-user-id',
+     email: 'dev@example.com',
+     roles: ['user', 'admin'] // Full permissions for development
+   }
+   ```
+4. A console message `🔓 Authentication bypassed for development` is logged
+5. The request proceeds as if the user was properly authenticated
+
+#### Usage Examples
+
+**API Testing**
+```bash
+# Without bypass - requires authentication
+curl -H "Authorization: Bearer <token>" http://localhost:3000/api/users
+
+# With bypass enabled - no authentication needed
+curl http://localhost:3000/api/users
+```
+
+**Frontend Development**
+- All protected routes are accessible without login
+- No authentication setup required for frontend development
+- API calls work without authentication headers
+
+#### Security Considerations
+
+⚠️ **Important Security Notes:**
+
+- This feature is **only available in development mode** (`NODE_ENV=development`)
+- The bypass is automatically disabled in production environments
+- The mock user has full admin privileges for testing purposes
+- Always ensure `BYPASS_AUTH_IN_DEV` is not set to `true` in production configurations
+
+#### Enabling/Disabling
+
+**To Enable Authentication Bypass:**
+1. Ensure you're in development mode: `NODE_ENV=development`
+2. Set the bypass flag: `BYPASS_AUTH_IN_DEV=true` (already configured in `.env.development`)
+3. Restart the development server
+
+**To Disable Authentication Bypass:**
+1. Set `BYPASS_AUTH_IN_DEV=false` or remove the variable
+2. Restart the development server
+3. Normal authentication will be required
+
+#### Troubleshooting Authentication Bypass
+
+**Authentication Bypass Not Working:**
+1. **Check Environment**: Ensure `NODE_ENV=development`
+2. **Check Flag**: Verify `BYPASS_AUTH_IN_DEV=true` is set
+3. **Restart Server**: Changes to environment variables require a server restart
+4. **Check Console**: Look for the bypass message in server logs
+
+**Still Getting 401 Errors:**
+1. Verify both environment variables are correctly set
+2. Check that you're hitting the correct endpoints
+3. Ensure the server was restarted after configuration changes
+4. Check for any middleware that might be running before the auth middleware
 
 ### Required Services
 

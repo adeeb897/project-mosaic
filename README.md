@@ -87,6 +87,17 @@ docker-compose up
 
 For detailed development setup instructions, see the [Development Setup Guide](docs/development-setup.md).
 
+#### Authentication Bypass for Development
+
+For easier development and testing, authentication can be bypassed in development mode:
+
+```bash
+# Set in .env.development (already configured)
+BYPASS_AUTH_IN_DEV=true
+```
+
+When enabled, all protected API endpoints will work without authentication headers. See the [Development Setup Guide](docs/development-setup.md#authentication-bypass-for-development) for more details.
+
 ### Building
 
 Build the project:

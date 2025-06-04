@@ -1,5 +1,6 @@
 import { Router } from 'express';
 import { asyncHandler, ApiError } from '../middleware';
+import { authenticate } from '../middleware/auth.middleware';
 import { AuthService, OAuthProvider } from '../../services/auth/auth.service';
 
 const router = Router();
@@ -100,6 +101,34 @@ router.post(
       data: {
         tokens,
       },
+    });
+  })
+);
+
+/**
+ * @route   GET /api/v1/auth/me
+ * @desc    Get current user
+ * @access  Private
+ */
+router.get(
+  '/me',
+  authenticate,
+  asyncHandler(async (req, res) => {
+    // User is set by authenticate middleware
+    const user = req.user;
+
+    if (!user) {
+      throw new ApiError(401, 'User not found');
+    }
+
+    // Return user data
+    res.status(200).json({
+      id: user.id,
+      email: user.email,
+      roles: user.roles,
+      // Add any other user properties you want to return
+      username: user.email.split('@')[0], // Generate username from email for now
+      displayName: user.email.split('@')[0],
     });
   })
 );
