@@ -186,6 +186,34 @@ describe('Authentication API Routes', () => {
     (mockDb as any).__clearAllData();
   });
 
+  describe('Error Handling', () => {
+    it('should handle missing required fields', async () => {
+      // Act
+      const response = await request(app).post('/api/v1/auth/register').send({});
+
+      // Assert
+      expect(response.status).toBe(400);
+    });
+
+    it('should handle empty authorization header', async () => {
+      // Act
+      const response = await request(app).get('/api/v1/auth/me').set('Authorization', '');
+
+      // Assert
+      expect(response.status).toBe(401);
+    });
+
+    it('should handle authorization header without Bearer prefix', async () => {
+      // Act
+      const response = await request(app)
+        .get('/api/v1/auth/me')
+        .set('Authorization', 'invalid-format');
+
+      // Assert
+      expect(response.status).toBe(401);
+    });
+  });
+
   describe('POST /api/v1/auth/register', () => {
     it('should register a new user successfully', async () => {
       // Arrange

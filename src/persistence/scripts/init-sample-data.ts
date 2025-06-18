@@ -13,9 +13,10 @@ import {
 } from '../index';
 import { ModuleType, ReviewStatus, ConversationStatus, UserStatus } from '../../types';
 import { IUserDocument } from '../models/user.model';
-import { IModuleDocument } from '../models/module.model';
+import { ModuleDocument } from '../models/module.model';
 import { IProfileDocument } from '../models/profile.model';
 import { IConversationDocument } from '../models/conversation.model';
+import { Schema } from 'mongoose';
 
 /**
  * Create sample users
@@ -83,7 +84,7 @@ async function createSampleUsers(): Promise<IUserDocument[]> {
 /**
  * Create sample modules
  */
-async function createSampleModules(users: IUserDocument[]): Promise<IModuleDocument[]> {
+async function createSampleModules(users: IUserDocument[]): Promise<ModuleDocument[]> {
   console.log('Creating sample modules...');
   const moduleRepo = new ModuleRepository();
 
@@ -172,7 +173,7 @@ async function createSampleModules(users: IUserDocument[]): Promise<IModuleDocum
  */
 async function createSampleProfiles(
   users: IUserDocument[],
-  modules: IModuleDocument[]
+  modules: ModuleDocument[]
 ): Promise<IProfileDocument[]> {
   console.log('Creating sample profiles...');
   const profileRepo = new ProfileRepository();
@@ -203,14 +204,14 @@ async function createSampleProfiles(
     description: 'Default user profile',
     modules: [
       {
-        moduleId: personalityModule._id,
+        moduleId: new Schema.Types.ObjectId(personalityModule._id.toString()),
         version: personalityModule.version,
         config: {},
         priority: 100,
         isActive: true,
       },
       {
-        moduleId: toolModule._id,
+        moduleId: new Schema.Types.ObjectId(toolModule._id.toString()),
         version: toolModule.version,
         config: {},
         priority: 90,
@@ -231,7 +232,7 @@ async function createSampleProfiles(
     description: 'Custom user profile',
     modules: [
       {
-        moduleId: personalityModule._id,
+        moduleId: new Schema.Types.ObjectId(personalityModule._id.toString()),
         version: personalityModule.version,
         config: {
           customPrompt: 'You are a very helpful assistant.',

@@ -1,307 +1,226 @@
-/**
- * Module model for Project Mosaic
- */
-import mongoose, { Document, Schema } from 'mongoose';
-import { ModuleType, ReviewStatus } from '../../types';
+import mongoose, { Schema, Document } from 'mongoose';
+import {
+  Module,
+  ModuleVersion,
+  ModuleInstallation,
+  ModuleStatus,
+  ReviewStatus,
+} from '../../core/models/Module';
+import { ModuleType } from '../../core/types/ModuleTypes';
 
-/**
- * Author interface
- */
-export interface IAuthor {
-  id: Schema.Types.ObjectId;
-  name: string;
-  website?: string;
-  email?: string;
-}
-
-/**
- * Dependency interface
- */
-export interface IDependency {
-  id: string;
-  version: string;
-  optional: boolean;
-}
-
-/**
- * Capability interface
- */
-export interface ICapability {
-  id: string;
-  version: string;
-  optional: boolean;
-}
-
-/**
- * Protocol support interface
- */
-export interface IProtocolSupport {
-  name: string;
-  version: string;
-}
-
-/**
- * Compatibility interface
- */
-export interface ICompatibility {
-  minPlatformVersion: string;
-  targetPlatformVersion: string;
-  supportedProtocols: IProtocolSupport[];
-  supportedModalities: string[];
-}
-
-/**
- * UI component definition interface
- */
-export interface IUIComponentDefinition {
-  id: string;
-  type: string;
-  location: string;
-  component: string;
-  props?: Record<string, any>;
-}
-
-/**
- * Module metadata interface
- */
-export interface IModuleMetadata {
-  schemaVersion: string;
-  license: string;
-  tags: string[];
-  dependencies: IDependency[];
-  permissions: string[];
-  capabilities: ICapability[];
-  compatibility: ICompatibility;
-  uiComponents?: IUIComponentDefinition[];
-}
-
-/**
- * Module interface
- */
-export interface IModule {
-  name: string;
-  description: string;
-  version: string;
-  type: ModuleType;
-  author: IAuthor;
-  createdAt: Date;
-  updatedAt: Date;
-  publishedAt?: Date;
-  requiresReview: boolean;
-  reviewStatus: ReviewStatus;
-  metadata: IModuleMetadata;
-  packageUrl?: string;
-  iconUrl?: string;
-  documentationUrl?: string;
-  repositoryUrl?: string;
-  installCount: number;
-  rating: number;
-  ratingCount: number;
-}
+// Re-export Module type for use in repositories
+export { Module } from '../../core/models/Module';
 
 /**
  * Module document interface
  */
-export interface IModuleDocument extends IModule, Document {
-  incrementInstallCount(): Promise<void>;
-  updateRating(newRating: number): Promise<void>;
+export interface ModuleDocument
+  extends Omit<Module, 'id' | 'createdAt' | 'updatedAt' | 'publishedAt'>,
+    Document {
+  _id: mongoose.Types.ObjectId;
+  createdAt: Date;
+  updatedAt: Date;
+  publishedAt?: Date;
+}
+
+/**
+ * Module version document interface
+ */
+export interface ModuleVersionDocument extends Omit<ModuleVersion, 'id' | 'createdAt'>, Document {
+  _id: mongoose.Types.ObjectId;
+  createdAt: Date;
+}
+
+/**
+ * Module installation document interface
+ */
+export interface ModuleInstallationDocument
+  extends Omit<ModuleInstallation, 'id' | 'installedAt' | 'updatedAt'>,
+    Document {
+  _id: mongoose.Types.ObjectId;
+  installedAt: Date;
+  updatedAt: Date;
 }
 
 /**
  * Author schema
  */
-const AuthorSchema = new Schema<IAuthor>(
-  {
-    id: { type: Schema.Types.ObjectId, ref: 'User', required: true },
-    name: { type: String, required: true },
-    website: { type: String },
-    email: { type: String },
-  },
-  { _id: false }
-);
+const AuthorSchema = new Schema({
+  id: { type: String, required: true },
+  name: { type: String, required: true },
+  website: { type: String },
+  email: { type: String },
+});
 
 /**
  * Dependency schema
  */
-const DependencySchema = new Schema<IDependency>(
-  {
-    id: { type: String, required: true },
-    version: { type: String, required: true },
-    optional: { type: Boolean, default: false },
-  },
-  { _id: false }
-);
+const DependencySchema = new Schema({
+  id: { type: String, required: true },
+  version: { type: String, required: true },
+  optional: { type: Boolean, default: false },
+});
 
 /**
  * Capability schema
  */
-const CapabilitySchema = new Schema<ICapability>(
-  {
-    id: { type: String, required: true },
-    version: { type: String, required: true },
-    optional: { type: Boolean, default: false },
-  },
-  { _id: false }
-);
+const CapabilitySchema = new Schema({
+  id: { type: String, required: true },
+  version: { type: String, required: true },
+  optional: { type: Boolean, default: false },
+});
 
 /**
  * Protocol support schema
  */
-const ProtocolSupportSchema = new Schema<IProtocolSupport>(
-  {
-    name: { type: String, required: true },
-    version: { type: String, required: true },
-  },
-  { _id: false }
-);
+const ProtocolSupportSchema = new Schema({
+  name: { type: String, required: true },
+  version: { type: String, required: true },
+});
 
 /**
  * Compatibility schema
  */
-const CompatibilitySchema = new Schema<ICompatibility>(
-  {
-    minPlatformVersion: { type: String, required: true },
-    targetPlatformVersion: { type: String, required: true },
-    supportedProtocols: [ProtocolSupportSchema],
-    supportedModalities: [{ type: String }],
-  },
-  { _id: false }
-);
+const CompatibilitySchema = new Schema({
+  minPlatformVersion: { type: String, required: true },
+  targetPlatformVersion: { type: String, required: true },
+  supportedProtocols: [ProtocolSupportSchema],
+  supportedModalities: [{ type: String }],
+});
 
 /**
  * UI component definition schema
  */
-const UIComponentDefinitionSchema = new Schema<IUIComponentDefinition>(
-  {
-    id: { type: String, required: true },
-    type: { type: String, required: true },
-    location: { type: String, required: true },
-    component: { type: String, required: true },
-    props: { type: Schema.Types.Mixed },
-  },
-  { _id: false }
-);
+const UIComponentDefinitionSchema = new Schema({
+  id: { type: String, required: true },
+  type: { type: String, required: true },
+  location: { type: String, required: true },
+  component: { type: String, required: true },
+  props: { type: Schema.Types.Mixed },
+});
 
 /**
  * Module metadata schema
  */
-const ModuleMetadataSchema = new Schema<IModuleMetadata>(
-  {
-    schemaVersion: { type: String, required: true },
-    license: { type: String, required: true },
-    tags: [{ type: String }],
-    dependencies: [DependencySchema],
-    permissions: [{ type: String }],
-    capabilities: [CapabilitySchema],
-    compatibility: { type: CompatibilitySchema, required: true },
-    uiComponents: [UIComponentDefinitionSchema],
-  },
-  { _id: false }
-);
+const ModuleMetadataSchema = new Schema({
+  schemaVersion: { type: String, required: true },
+  license: { type: String, required: true },
+  tags: [{ type: String }],
+  dependencies: [DependencySchema],
+  permissions: [{ type: String }],
+  capabilities: [CapabilitySchema],
+  compatibility: { type: CompatibilitySchema, required: true },
+  uiComponents: [UIComponentDefinitionSchema],
+});
 
 /**
  * Module schema
  */
-const ModuleSchema = new Schema<IModuleDocument>(
+const ModuleSchema = new Schema<ModuleDocument>(
   {
-    name: {
-      type: String,
-      required: true,
-      trim: true,
-      minlength: 3,
-      maxlength: 100,
-    },
-    description: {
-      type: String,
-      required: true,
-      trim: true,
-      maxlength: 1000,
-    },
-    version: {
-      type: String,
-      required: true,
-      match:
-        /^(\d+)\.(\d+)\.(\d+)(?:-([0-9A-Za-z-]+(?:\.[0-9A-Za-z-]+)*))?(?:\+([0-9A-Za-z-]+(?:\.[0-9A-Za-z-]+)*))?$/,
-    },
+    name: { type: String, required: true, index: true },
+    description: { type: String, required: true },
+    version: { type: String, required: true },
     type: {
       type: String,
       enum: Object.values(ModuleType),
       required: true,
+      index: true,
     },
-    author: {
-      type: AuthorSchema,
-      required: true,
-    },
-    createdAt: { type: Date, default: Date.now },
-    updatedAt: { type: Date, default: Date.now },
+    author: { type: AuthorSchema, required: true },
     publishedAt: { type: Date },
     requiresReview: { type: Boolean, default: true },
     reviewStatus: {
       type: String,
       enum: Object.values(ReviewStatus),
       default: ReviewStatus.PENDING,
+      index: true,
     },
-    metadata: {
-      type: ModuleMetadataSchema,
-      required: true,
+    status: {
+      type: String,
+      enum: Object.values(ModuleStatus),
+      default: ModuleStatus.INACTIVE,
+      index: true,
     },
-    packageUrl: { type: String },
-    iconUrl: { type: String },
-    documentationUrl: { type: String },
-    repositoryUrl: { type: String },
+    metadata: { type: ModuleMetadataSchema, required: true },
+    checksum: { type: String },
+    downloadUrl: { type: String },
     installCount: { type: Number, default: 0 },
-    rating: { type: Number, default: 0, min: 0, max: 5 },
+    rating: { type: Number, min: 0, max: 5 },
     ratingCount: { type: Number, default: 0 },
   },
   {
     timestamps: true,
-    toJSON: {
-      virtuals: true,
-      transform: (_, ret) => {
-        delete ret.__v;
-        return ret;
-      },
-    },
   }
 );
 
-// Indexes
-ModuleSchema.index({ name: 1 });
+// Compound indexes for efficient queries
+ModuleSchema.index({ name: 1, version: 1 }, { unique: true });
 ModuleSchema.index({ 'author.id': 1 });
-ModuleSchema.index({ type: 1 });
 ModuleSchema.index({ 'metadata.tags': 1 });
-ModuleSchema.index({ reviewStatus: 1 });
-ModuleSchema.index({ installCount: -1 });
-ModuleSchema.index({ rating: -1 });
-ModuleSchema.index({ createdAt: -1 });
-ModuleSchema.index({ publishedAt: -1 });
-ModuleSchema.index({ name: 'text', description: 'text' });
+ModuleSchema.index({ status: 1, type: 1 });
 
-// Compound indexes
-ModuleSchema.index({ type: 1, reviewStatus: 1 });
-ModuleSchema.index({ type: 1, 'metadata.tags': 1 });
-ModuleSchema.index({ type: 1, rating: -1 });
-ModuleSchema.index({ type: 1, installCount: -1 });
+/**
+ * Module version schema
+ */
+const ModuleVersionSchema = new Schema<ModuleVersionDocument>(
+  {
+    moduleId: { type: String, required: true, index: true },
+    version: { type: String, required: true },
+    releaseNotes: { type: String },
+    metadata: { type: ModuleMetadataSchema, required: true },
+    checksum: { type: String, required: true },
+    downloadUrl: { type: String, required: true },
+    deprecated: { type: Boolean, default: false },
+    yanked: { type: Boolean, default: false },
+  },
+  {
+    timestamps: { createdAt: true, updatedAt: false },
+  }
+);
 
-// Methods
-ModuleSchema.methods.incrementInstallCount = async function (): Promise<void> {
-  this.installCount += 1;
-  await this.save();
-};
+// Compound index for module versions
+ModuleVersionSchema.index({ moduleId: 1, version: 1 }, { unique: true });
 
-ModuleSchema.methods.updateRating = async function (newRating: number): Promise<void> {
-  // Calculate new average rating
-  const totalRating = this.rating * this.ratingCount + newRating;
-  this.ratingCount += 1;
-  this.rating = totalRating / this.ratingCount;
-  await this.save();
-};
+/**
+ * Module installation schema
+ */
+const ModuleInstallationSchema = new Schema<ModuleInstallationDocument>(
+  {
+    userId: { type: String, required: true, index: true },
+    moduleId: { type: String, required: true, index: true },
+    version: { type: String, required: true },
+    enabled: { type: Boolean, default: true },
+    config: { type: Schema.Types.Mixed, default: {} },
+    profileIds: [{ type: String }],
+  },
+  {
+    timestamps: { createdAt: 'installedAt', updatedAt: true },
+  }
+);
 
-// Pre-save hook
-ModuleSchema.pre('save', function (next) {
-  this.updatedAt = new Date();
-  next();
-});
+// Compound indexes for installations
+ModuleInstallationSchema.index({ userId: 1, moduleId: 1 }, { unique: true });
+ModuleInstallationSchema.index({ userId: 1, enabled: 1 });
+ModuleInstallationSchema.index({ profileIds: 1 });
 
-// Create and export the model
-export const Module = mongoose.model<IModuleDocument>('Module', ModuleSchema);
+/**
+ * Module model
+ */
+export const ModuleModel = mongoose.model<ModuleDocument>('Module', ModuleSchema);
+
+/**
+ * Module version model
+ */
+export const ModuleVersionModel = mongoose.model<ModuleVersionDocument>(
+  'ModuleVersion',
+  ModuleVersionSchema
+);
+
+/**
+ * Module installation model
+ */
+export const ModuleInstallationModel = mongoose.model<ModuleInstallationDocument>(
+  'ModuleInstallation',
+  ModuleInstallationSchema
+);
