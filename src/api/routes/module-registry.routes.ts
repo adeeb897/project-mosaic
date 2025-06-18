@@ -168,6 +168,29 @@ router.get(
 );
 
 /**
+ * @route   GET /api/modules/installations
+ * @desc    Get user's module installations
+ * @access  Private (requires authentication)
+ */
+router.get('/installations', ...authMiddleware, async (req: Request, res: Response) => {
+  try {
+    const userId = (req as any).user.id;
+    const installations = await moduleRegistry.getUserInstallations(userId);
+    res.json({
+      success: true,
+      data: installations,
+      count: installations.length,
+    });
+  } catch (error: any) {
+    logger.error('Failed to get user installations:', error);
+    res.status(500).json({
+      success: false,
+      error: 'Failed to get user installations',
+    });
+  }
+});
+
+/**
  * @route   GET /api/modules/:moduleId
  * @desc    Get module by ID
  * @access  Public
@@ -292,29 +315,6 @@ router.post(
     }
   }
 );
-
-/**
- * @route   GET /api/modules/installations
- * @desc    Get user's module installations
- * @access  Private (requires authentication)
- */
-router.get('/installations', ...authMiddleware, async (req: Request, res: Response) => {
-  try {
-    const userId = (req as any).user.id;
-    const installations = await moduleRegistry.getUserInstallations(userId);
-    res.json({
-      success: true,
-      data: installations,
-      count: installations.length,
-    });
-  } catch (error: any) {
-    logger.error('Failed to get user installations:', error);
-    res.status(500).json({
-      success: false,
-      error: 'Failed to get user installations',
-    });
-  }
-});
 
 /**
  * @route   PUT /api/modules/:moduleId/installation

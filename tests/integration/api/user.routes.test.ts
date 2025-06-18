@@ -370,9 +370,7 @@ describe('User API Routes', () => {
       };
 
       // Act
-      const response = await request(app)
-        .post('/api/users')
-        .send(userData);
+      const response = await request(app).post('/api/users').send(userData);
 
       // Assert
       expect(response.status).toBe(401);

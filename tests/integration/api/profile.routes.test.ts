@@ -50,9 +50,7 @@ describe('Profile API Routes', () => {
       };
 
       // Act
-      const response = await request(app)
-        .post('/api/v1/profiles')
-        .send(profileData);
+      const response = await request(app).post('/api/v1/profiles').send(profileData);
 
       // Assert
       expect(response.status).toBe(201);
@@ -75,9 +73,7 @@ describe('Profile API Routes', () => {
       };
 
       // Act
-      const response = await request(app)
-        .put(`/api/v1/profiles/${profileId}`)
-        .send(updateData);
+      const response = await request(app).put(`/api/v1/profiles/${profileId}`).send(updateData);
 
       // Assert
       expect(response.status).toBe(200);
@@ -139,7 +135,9 @@ describe('Profile API Routes', () => {
       const moduleId = 'test-module-456';
 
       // Act
-      const response = await request(app).delete(`/api/v1/profiles/${profileId}/modules/${moduleId}`);
+      const response = await request(app).delete(
+        `/api/v1/profiles/${profileId}/modules/${moduleId}`
+      );
 
       // Assert
       expect(response.status).toBe(200);

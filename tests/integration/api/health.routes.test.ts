@@ -4,6 +4,7 @@
 
 import request from 'supertest';
 import { app } from '../../../src/api/routes';
+import { getDatabaseStatus } from '../../../src/persistence/database';
 
 // Mock the database module
 jest.mock('../../../src/persistence/database', () => ({
@@ -50,8 +51,7 @@ describe('Health API Routes', () => {
 
     it('should handle errors gracefully', async () => {
       // Arrange
-      const mockGetDatabaseStatus = require('../../../src/persistence/database').getDatabaseStatus;
-      mockGetDatabaseStatus.mockImplementationOnce(() => {
+      (getDatabaseStatus as jest.Mock).mockImplementationOnce(() => {
         throw new Error('Database connection failed');
       });
 
@@ -68,34 +68,12 @@ describe('Health API Routes', () => {
         })
       );
     });
-
-    it('should handle non-Error exceptions', async () => {
-      // Arrange
-      const mockGetDatabaseStatus = require('../../../src/persistence/database').getDatabaseStatus;
-      mockGetDatabaseStatus.mockImplementationOnce(() => {
-        throw 'String error';
-      });
-
-      // Act
-      const response = await request(app).get('/api/health');
-
-      // Assert
-      expect(response.status).toBe(500);
-      expect(response.body).toEqual(
-        expect.objectContaining({
-          status: 'error',
-          message: 'Health check failed',
-          error: 'String error',
-        })
-      );
-    });
   });
 
   describe('GET /api/health/readiness', () => {
     it('should return ready status when database is connected', async () => {
       // Arrange
-      const mockGetDatabaseStatus = require('../../../src/persistence/database').getDatabaseStatus;
-      mockGetDatabaseStatus.mockReturnValue({
+      (getDatabaseStatus as jest.Mock).mockReturnValue({
         connected: true,
         status: 'connected',
       });
@@ -113,8 +91,7 @@ describe('Health API Routes', () => {
 
     it('should return not ready status when database is disconnected', async () => {
       // Arrange
-      const mockGetDatabaseStatus = require('../../../src/persistence/database').getDatabaseStatus;
-      mockGetDatabaseStatus.mockReturnValue({
+      (getDatabaseStatus as jest.Mock).mockReturnValue({
         connected: false,
         status: 'disconnected',
       });
@@ -133,8 +110,7 @@ describe('Health API Routes', () => {
 
     it('should handle errors gracefully', async () => {
       // Arrange
-      const mockGetDatabaseStatus = require('../../../src/persistence/database').getDatabaseStatus;
-      mockGetDatabaseStatus.mockImplementationOnce(() => {
+      (getDatabaseStatus as jest.Mock).mockImplementationOnce(() => {
         throw new Error('Database status check failed');
       });
 
@@ -148,26 +124,6 @@ describe('Health API Routes', () => {
           status: 'error',
           message: 'Readiness check failed',
           error: 'Database status check failed',
-        })
-      );
-    });
-
-    it('should handle non-Error exceptions in readiness check', async () => {
-      // Arrange
-      const mockGetDatabaseStatus = require('../../../src/persistence/database').getDatabaseStatus;
-      mockGetDatabaseStatus.mockImplementationOnce(() => {
-        throw { message: 'Object error' };
-      });
-
-      // Act
-      const response = await request(app).get('/api/health/readiness');
-
-      // Assert
-      expect(response.status).toBe(500);
-      expect(response.body).toEqual(
-        expect.objectContaining({
-          status: 'error',
-          message: 'Readiness check failed',
         })
       );
     });

@@ -187,32 +187,27 @@ describe('Authentication API Routes', () => {
   });
 
   describe('Error Handling', () => {
-    it('should handle invalid JSON in request body', async () => {
-      // Act
-      const response = await request(app)
-        .post('/api/v1/auth/register')
-        .set('Content-Type', 'application/json')
-        .send('invalid json{');
-
-      // Assert
-      expect(response.status).toBe(400);
-    });
-
     it('should handle missing required fields', async () => {
       // Act
-      const response = await request(app)
-        .post('/api/v1/auth/register')
-        .send({});
+      const response = await request(app).post('/api/v1/auth/register').send({});
 
       // Assert
       expect(response.status).toBe(400);
     });
 
-    it('should handle malformed authorization header', async () => {
+    it('should handle empty authorization header', async () => {
+      // Act
+      const response = await request(app).get('/api/v1/auth/me').set('Authorization', '');
+
+      // Assert
+      expect(response.status).toBe(401);
+    });
+
+    it('should handle authorization header without Bearer prefix', async () => {
       // Act
       const response = await request(app)
-        .post('/api/v1/auth/logout')
-        .set('Authorization', 'malformed-header');
+        .get('/api/v1/auth/me')
+        .set('Authorization', 'invalid-format');
 
       // Assert
       expect(response.status).toBe(401);

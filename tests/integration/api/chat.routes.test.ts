@@ -50,9 +50,7 @@ describe('Chat API Routes', () => {
       };
 
       // Act
-      const response = await request(app)
-        .post('/api/v1/chat/sessions')
-        .send(sessionData);
+      const response = await request(app).post('/api/v1/chat/sessions').send(sessionData);
 
       // Assert
       expect(response.status).toBe(201);
@@ -74,9 +72,7 @@ describe('Chat API Routes', () => {
       };
 
       // Act
-      const response = await request(app)
-        .post('/api/v1/chat/messages')
-        .send(messageData);
+      const response = await request(app).post('/api/v1/chat/messages').send(messageData);
 
       // Assert
       expect(response.status).toBe(201);

@@ -51,9 +51,7 @@ describe('Module API Routes', () => {
       };
 
       // Act
-      const response = await request(app)
-        .post('/api/v1/modules')
-        .send(moduleData);
+      const response = await request(app).post('/api/v1/modules').send(moduleData);
 
       // Assert
       expect(response.status).toBe(201);
@@ -79,9 +77,7 @@ describe('Module API Routes', () => {
       };
 
       // Act
-      const response = await request(app)
-        .put(`/api/v1/modules/${moduleId}`)
-        .send(updateData);
+      const response = await request(app).put(`/api/v1/modules/${moduleId}`).send(updateData);
 
       // Assert
       expect(response.status).toBe(200);

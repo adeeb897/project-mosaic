@@ -45,7 +45,7 @@ jest.mock('../../../src/services/module/module-registry.service', () => ({
       modules: [],
       total: 0,
     }),
-    getModuleById: jest.fn().mockResolvedValue({
+    getModule: jest.fn().mockResolvedValue({
       id: 'test-module-123',
       name: 'Test Module',
       version: '1.0.0',
@@ -55,7 +55,7 @@ jest.mock('../../../src/services/module/module-registry.service', () => ({
       name: 'Updated Test Module',
       version: '1.0.1',
     }),
-    addModuleVersion: jest.fn().mockResolvedValue({
+    publishModuleVersion: jest.fn().mockResolvedValue({
       id: 'test-module-123',
       version: '1.1.0',
     }),
@@ -67,11 +67,11 @@ jest.mock('../../../src/services/module/module-registry.service', () => ({
       version: '1.1.0',
       createdAt: new Date(),
     }),
-    installModule: jest.fn().mockResolvedValue({
+    recordInstallation: jest.fn().mockResolvedValue({
       moduleId: 'test-module-123',
       installedAt: new Date(),
     }),
-    getInstalledModules: jest.fn().mockResolvedValue([]),
+    getUserInstallations: jest.fn().mockResolvedValue([]),
     updateInstallation: jest.fn().mockResolvedValue({
       moduleId: 'test-module-123',
       updatedAt: new Date(),
@@ -84,6 +84,10 @@ jest.mock('../../../src/services/module/module-registry.service', () => ({
     checkConflicts: jest.fn().mockResolvedValue({
       conflicts: [],
       warnings: [],
+    }),
+    resolveDependencies: jest.fn().mockResolvedValue({
+      dependencies: [],
+      conflicts: [],
     }),
   }),
 }));
@@ -111,15 +115,17 @@ jest.mock('../../../src/api/middleware/auth.middleware', () => {
     }
   });
 
-  const authorize = jest.fn().mockImplementation((roles: string[]) => (req: any, res: any, next: any) => {
-    if (!req.user) {
-      return res.status(401).json({ error: 'Unauthorized' });
-    }
-    if (roles && !req.user.roles.some((role: string) => roles.includes(role))) {
-      return res.status(403).json({ error: 'Forbidden' });
-    }
-    next();
-  });
+  const authorize = jest
+    .fn()
+    .mockImplementation((roles: string[]) => (req: any, res: any, next: any) => {
+      if (!req.user) {
+        return res.status(401).json({ error: 'Unauthorized' });
+      }
+      if (roles && !req.user.roles.some((role: string) => roles.includes(role))) {
+        return res.status(403).json({ error: 'Forbidden' });
+      }
+      next();
+    });
 
   return {
     authenticate,
@@ -139,7 +145,7 @@ describe('Module Registry API Routes', () => {
         name: 'Test Module',
         description: 'A test module',
         version: '1.0.0',
-        type: 'AGENT',
+        type: 'agent',
         author: {
           id: 'author-123',
           name: 'Test Author',
@@ -192,9 +198,7 @@ describe('Module Registry API Routes', () => {
 
     it('should return 401 for unauthenticated requests', async () => {
       // Act
-      const response = await request(app)
-        .post('/api/modules/register')
-        .send({});
+      const response = await request(app).post('/api/modules/register').send({});
 
       // Assert
       expect(response.status).toBe(401);
@@ -269,7 +273,7 @@ describe('Module Registry API Routes', () => {
         name: 'Updated Test Module',
         description: 'Updated description',
         version: '1.0.1',
-        type: 'AGENT',
+        type: 'agent',
         author: {
           id: 'author-123',
           name: 'Test Author',
@@ -308,6 +312,11 @@ describe('Module Registry API Routes', () => {
       const moduleId = 'test-module-123';
       const versionData = {
         version: '1.1.0',
+        description: 'Updated test module',
+        metadata: {
+          schemaVersion: '1.0',
+          license: 'MIT',
+        },
         changelog: 'Added new features',
         releaseNotes: 'This version includes bug fixes',
       };
@@ -345,6 +354,7 @@ describe('Module Registry API Routes', () => {
       expect(response.body).toEqual({
         success: true,
         data: expect.any(Array),
+        count: expect.any(Number),
       });
     });
   });
@@ -361,7 +371,7 @@ describe('Module Registry API Routes', () => {
         .send({ version: '1.0.0' });
 
       // Assert
-      expect(response.status).toBe(200);
+      expect(response.status).toBe(201);
       expect(response.body).toEqual({
         success: true,
         data: expect.objectContaining({
@@ -384,6 +394,7 @@ describe('Module Registry API Routes', () => {
       expect(response.body).toEqual({
         success: true,
         data: expect.any(Array),
+        count: expect.any(Number),
       });
     });
   });
