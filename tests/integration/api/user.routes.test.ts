@@ -21,10 +21,11 @@ interface MockUser {
 // Mock the database module
 jest.mock('../../../src/persistence/database', () => {
   // Store mock data in memory for the duration of the tests
-  const users: Record<string, MockUser> = {};
-
+  const users: Record<string, any> = {};
+  const mockGenerateId = () => Math.random().toString(36).substring(2, 9);
+  
   return {
-    // Function to clear all users (for testing)
+    // Function to clear all data (for testing)
     __clearAllUsers: () => {
       Object.keys(users).forEach(key => delete users[key]);
     },
@@ -36,12 +37,12 @@ jest.mock('../../../src/persistence/database', () => {
               return users[query.id] || null;
             } else if (query.username) {
               return (
-                Object.values(users).find((user: MockUser) => user.username === query.username) ||
+                Object.values(users).find((user: any) => user.username === query.username) ||
                 null
               );
             } else if (query.email) {
               return (
-                Object.values(users).find((user: MockUser) => user.email === query.email) || null
+                Object.values(users).find((user: any) => user.email === query.email) || null
               );
             }
             return null;
@@ -52,32 +53,25 @@ jest.mock('../../../src/persistence/database', () => {
             // Apply filters
             if (query.status) {
               filteredUsers = filteredUsers.filter(
-                (user: MockUser) => user.status === query.status
+                (user: any) => user.status === query.status
               );
             }
 
             return {
-              sort: () => ({
-                skip: (skip: number) => ({
-                  limit: (limit: number) => ({
-                    toArray: async () => {
-                      // Make sure we're only returning the users that match the query
-                      // and respecting pagination
-                      return filteredUsers.slice(skip, skip + limit);
-                    },
-                  }),
-                }),
-              }),
+              sort: jest.fn().mockReturnThis(),
+              skip: jest.fn().mockReturnThis(),
+              limit: jest.fn().mockReturnThis(),
+              toArray: jest.fn().mockResolvedValue(filteredUsers),
             };
           }),
           insertOne: jest.fn().mockImplementation(async user => {
-            const id = user.id || generateId();
+            const id = user.id || mockGenerateId();
             user.id = id;
             users[id] = user;
             return { insertedId: id };
           }),
           updateOne: jest.fn().mockImplementation(async (query, update) => {
-            const user = users[query.id] as MockUser;
+            const user = users[query.id];
             if (!user) {
               return { modifiedCount: 0 };
             }
@@ -91,7 +85,7 @@ jest.mock('../../../src/persistence/database', () => {
                   if (!user[parent]) {
                     user[parent] = {};
                   }
-                  (user[parent] as Record<string, unknown>)[child] = value;
+                  user[parent][child] = value;
                 } else {
                   user[key] = value;
                 }
@@ -113,10 +107,13 @@ jest.mock('../../../src/persistence/database', () => {
       return {
         findOne: jest.fn().mockResolvedValue(null),
         find: jest.fn().mockReturnThis(),
-        insertOne: jest.fn().mockResolvedValue({ insertedId: generateId() }),
+        sort: jest.fn().mockReturnThis(),
+        skip: jest.fn().mockReturnThis(),
+        limit: jest.fn().mockReturnThis(),
+        toArray: jest.fn().mockResolvedValue([]),
+        insertOne: jest.fn().mockResolvedValue({ insertedId: mockGenerateId() }),
         updateOne: jest.fn().mockResolvedValue({ modifiedCount: 0 }),
         deleteOne: jest.fn().mockResolvedValue({ deletedCount: 0 }),
-        toArray: jest.fn().mockResolvedValue([]),
       };
     }),
   };
@@ -143,8 +140,8 @@ interface MockResponse {
 }
 
 // Mock the auth middleware
-jest.mock('../../../src/api/middleware/auth.middleware', () => ({
-  authenticate: jest
+jest.mock('../../../src/api/middleware/auth.middleware', () => {
+  const authenticate = jest
     .fn()
     .mockImplementation((req: MockRequest, res: MockResponse, next: () => void) => {
       // Check for Authorization header
@@ -178,8 +175,9 @@ jest.mock('../../../src/api/middleware/auth.middleware', () => ({
       } catch (error) {
         return res.status(401).json({ error: 'Invalid token' });
       }
-    }),
-  authorize: jest
+    });
+
+  const authorize = jest
     .fn()
     .mockImplementation(
       (roles: string[]) => (req: MockRequest, res: MockResponse, next: () => void) => {
@@ -193,13 +191,18 @@ jest.mock('../../../src/api/middleware/auth.middleware', () => ({
 
         next();
       }
-    ),
-}));
+    );
+
+  return {
+    authenticate,
+    authorize,
+    authMiddleware: [authenticate, authorize(['user', 'admin'])],
+    adminMiddleware: [authenticate, authorize(['admin'])],
+  };
+});
 
 describe('User API Routes', () => {
   beforeEach(async () => {
-    jest.clearAllMocks();
-
     // Clear the mock database before each test
     const mockDb = await import('../../../src/persistence/database');
     (mockDb as any).__clearAllUsers();
@@ -212,7 +215,7 @@ describe('User API Routes', () => {
       const token = generateTestToken(mockUser.id, ['admin']);
 
       // Seed the mock database
-      const { getCollection } = jest.mocked(await import('../../../src/persistence/database'));
+      const { getCollection } = await import('../../../src/persistence/database');
       const collection = getCollection('users');
       await collection.insertOne(mockUser);
 
@@ -264,12 +267,17 @@ describe('User API Routes', () => {
 
     it('should return 403 if not authorized', async () => {
       // Arrange
-      const userId = generateId();
+      const mockUser = generateMockUser();
       const token = generateTestToken(generateId(), ['user']); // Not an admin
+
+      // Seed the mock database
+      const { getCollection } = await import('../../../src/persistence/database');
+      const collection = getCollection('users');
+      await collection.insertOne(mockUser);
 
       // Act
       const response = await request(app)
-        .get(`/api/users/${userId}`)
+        .get(`/api/users/${mockUser.id}`)
         .set('Authorization', `Bearer ${token}`);
 
       // Assert

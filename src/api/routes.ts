@@ -3,113 +3,27 @@
  */
 
 import express, { Request, Response } from 'express';
-import { UserService } from '../services/user/user.service';
-import { authenticate, authorize } from './middleware/auth.middleware';
 import { authRoutes } from './routes/auth.routes';
 import moduleRegistryRoutes from './routes/module-registry.routes';
+import { userRoutes } from './routes/user.routes';
 import { errorHandler } from './middleware/error.middleware';
-
-// Create Express app
-const app = express();
-
-// Configure middleware
-app.use(express.json());
-app.use(express.urlencoded({ extended: true }));
-
-// Create services
-const userService = new UserService();
-
-// Define routes
-const router = express.Router();
-
-// User routes
-router.get(
-  '/users/:id',
-  authenticate,
-  authorize(['admin']),
-  async (req: Request, res: Response) => {
-    try {
-      const user = await userService.getUser(req.params.id);
-      res.json(user);
-    } catch (error) {
-      res.status(404).json({ error: error instanceof Error ? error.message : 'Unknown error' });
-    }
-  }
-);
-
-router.get('/users', authenticate, authorize(['admin']), async (req: Request, res: Response) => {
-  try {
-    const { page, limit, ...filters } = req.query;
-    const users = await userService.listUsers({
-      page: page ? parseInt(page as string, 10) : 1,
-      limit: limit ? parseInt(limit as string, 10) : 10,
-      ...filters,
-    });
-    res.json(users);
-  } catch (error) {
-    res.status(500).json({ error: error instanceof Error ? error.message : 'Unknown error' });
-  }
-});
-
-router.post('/users', authenticate, authorize(['admin']), async (req: Request, res: Response) => {
-  try {
-    const user = await userService.createUser(req.body);
-    res.status(201).json(user);
-  } catch (error) {
-    res.status(400).json({ error: error instanceof Error ? error.message : 'Unknown error' });
-  }
-});
-
-router.put(
-  '/users/:id',
-  authenticate,
-  authorize(['admin']),
-  async (req: Request, res: Response) => {
-    try {
-      const user = await userService.updateUser(req.params.id, req.body);
-      res.json(user);
-    } catch (error) {
-      res.status(404).json({ error: error instanceof Error ? error.message : 'Unknown error' });
-    }
-  }
-);
-
-router.delete(
-  '/users/:id',
-  authenticate,
-  authorize(['admin']),
-  async (req: Request, res: Response) => {
-    try {
-      await userService.deleteUser(req.params.id);
-      res.json({ success: true });
-    } catch (error) {
-      res.status(404).json({ error: error instanceof Error ? error.message : 'Unknown error' });
-    }
-  }
-);
-
-// Mount auth routes
-app.use('/api/v1/auth', authRoutes);
-
-// Mount module registry routes
-app.use('/api/modules', moduleRegistryRoutes);
-
-// Mount other API routes
-app.use('/api', router);
-
-// Add error handling middleware (must be last)
-app.use(errorHandler);
 
 /**
  * Setup routes for the Express application
  * @param app Express application instance
  */
 export const setupRoutes = (app: express.Express): void => {
+  // Define API router
+  const router = express.Router();
+
   // Mount auth routes
   app.use('/api/v1/auth', authRoutes);
 
   // Mount module registry routes
   app.use('/api/modules', moduleRegistryRoutes);
+
+  // Mount user routes
+  app.use('/api/users', userRoutes);
 
   // Mount the API router
   app.use('/api', router);
@@ -132,5 +46,15 @@ export const setupRoutes = (app: express.Express): void => {
   // Add error handling middleware (must be last)
   app.use(errorHandler);
 };
+
+// Create Express app
+const app = express();
+
+// Configure middleware
+app.use(express.json());
+app.use(express.urlencoded({ extended: true }));
+
+// Setup routes
+setupRoutes(app);
 
 export { app };

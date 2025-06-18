@@ -3,43 +3,41 @@
  */
 import { FilterQuery } from 'mongoose';
 import { BaseRepository, IBaseRepository } from './base.repository';
-import { IModuleDocument, Module } from '../models/module.model';
-import { ModuleType, ReviewStatus } from '../../types';
+import { ModuleDocument, ModuleModel } from '../models/module.model';
+import { ModuleType } from '../../core/types/ModuleTypes';
+import { ReviewStatus } from '../../core/models/Module';
 
 /**
  * Module repository interface
  */
-export interface IModuleRepository extends IBaseRepository<IModuleDocument> {
-  findByName(name: string): Promise<IModuleDocument | null>;
-  findByType(type: ModuleType, filter?: FilterQuery<IModuleDocument>): Promise<IModuleDocument[]>;
-  findByAuthor(authorId: string, filter?: FilterQuery<IModuleDocument>): Promise<IModuleDocument[]>;
-  findByTags(tags: string[], filter?: FilterQuery<IModuleDocument>): Promise<IModuleDocument[]>;
+export interface IModuleRepository extends IBaseRepository<ModuleDocument> {
+  findByName(name: string): Promise<ModuleDocument | null>;
+  findByType(type: ModuleType, filter?: FilterQuery<ModuleDocument>): Promise<ModuleDocument[]>;
+  findByAuthor(authorId: string, filter?: FilterQuery<ModuleDocument>): Promise<ModuleDocument[]>;
+  findByTags(tags: string[], filter?: FilterQuery<ModuleDocument>): Promise<ModuleDocument[]>;
   findByReviewStatus(
     status: ReviewStatus,
-    filter?: FilterQuery<IModuleDocument>
-  ): Promise<IModuleDocument[]>;
-  findPopular(limit?: number, filter?: FilterQuery<IModuleDocument>): Promise<IModuleDocument[]>;
-  findHighestRated(
-    limit?: number,
-    filter?: FilterQuery<IModuleDocument>
-  ): Promise<IModuleDocument[]>;
-  findNewest(limit?: number, filter?: FilterQuery<IModuleDocument>): Promise<IModuleDocument[]>;
-  searchModules(query: string, filter?: FilterQuery<IModuleDocument>): Promise<IModuleDocument[]>;
+    filter?: FilterQuery<ModuleDocument>
+  ): Promise<ModuleDocument[]>;
+  findPopular(limit?: number, filter?: FilterQuery<ModuleDocument>): Promise<ModuleDocument[]>;
+  findHighestRated(limit?: number, filter?: FilterQuery<ModuleDocument>): Promise<ModuleDocument[]>;
+  findNewest(limit?: number, filter?: FilterQuery<ModuleDocument>): Promise<ModuleDocument[]>;
+  searchModules(query: string, filter?: FilterQuery<ModuleDocument>): Promise<ModuleDocument[]>;
   incrementInstallCount(moduleId: string): Promise<void>;
   updateRating(moduleId: string, newRating: number): Promise<void>;
-  updateReviewStatus(moduleId: string, status: ReviewStatus): Promise<IModuleDocument | null>;
-  publishModule(moduleId: string): Promise<IModuleDocument | null>;
+  updateReviewStatus(moduleId: string, status: ReviewStatus): Promise<ModuleDocument | null>;
+  publishModule(moduleId: string): Promise<ModuleDocument | null>;
 }
 
 /**
  * Module repository implementation
  */
-export class ModuleRepository extends BaseRepository<IModuleDocument> implements IModuleRepository {
+export class ModuleRepository extends BaseRepository<ModuleDocument> implements IModuleRepository {
   /**
    * Constructor
    */
   constructor() {
-    super(Module);
+    super(ModuleModel);
   }
 
   /**
@@ -48,7 +46,7 @@ export class ModuleRepository extends BaseRepository<IModuleDocument> implements
    * @param name The module name
    * @returns The module or null if not found
    */
-  async findByName(name: string): Promise<IModuleDocument | null> {
+  async findByName(name: string): Promise<ModuleDocument | null> {
     return this.findOne({ name });
   }
 
@@ -61,8 +59,8 @@ export class ModuleRepository extends BaseRepository<IModuleDocument> implements
    */
   async findByType(
     type: ModuleType,
-    filter: FilterQuery<IModuleDocument> = {}
-  ): Promise<IModuleDocument[]> {
+    filter: FilterQuery<ModuleDocument> = {}
+  ): Promise<ModuleDocument[]> {
     return this.find({
       ...filter,
       type,
@@ -78,8 +76,8 @@ export class ModuleRepository extends BaseRepository<IModuleDocument> implements
    */
   async findByAuthor(
     authorId: string,
-    filter: FilterQuery<IModuleDocument> = {}
-  ): Promise<IModuleDocument[]> {
+    filter: FilterQuery<ModuleDocument> = {}
+  ): Promise<ModuleDocument[]> {
     return this.find({
       ...filter,
       'author.id': authorId,
@@ -95,8 +93,8 @@ export class ModuleRepository extends BaseRepository<IModuleDocument> implements
    */
   async findByTags(
     tags: string[],
-    filter: FilterQuery<IModuleDocument> = {}
-  ): Promise<IModuleDocument[]> {
+    filter: FilterQuery<ModuleDocument> = {}
+  ): Promise<ModuleDocument[]> {
     return this.find({
       ...filter,
       'metadata.tags': { $in: tags },
@@ -112,8 +110,8 @@ export class ModuleRepository extends BaseRepository<IModuleDocument> implements
    */
   async findByReviewStatus(
     status: ReviewStatus,
-    filter: FilterQuery<IModuleDocument> = {}
-  ): Promise<IModuleDocument[]> {
+    filter: FilterQuery<ModuleDocument> = {}
+  ): Promise<ModuleDocument[]> {
     return this.find({
       ...filter,
       reviewStatus: status,
@@ -129,8 +127,8 @@ export class ModuleRepository extends BaseRepository<IModuleDocument> implements
    */
   async findPopular(
     limit: number = 10,
-    filter: FilterQuery<IModuleDocument> = {}
-  ): Promise<IModuleDocument[]> {
+    filter: FilterQuery<ModuleDocument> = {}
+  ): Promise<ModuleDocument[]> {
     const result = await this.model.find(filter).sort({ installCount: -1 }).limit(limit);
     return result;
   }
@@ -144,8 +142,8 @@ export class ModuleRepository extends BaseRepository<IModuleDocument> implements
    */
   async findHighestRated(
     limit: number = 10,
-    filter: FilterQuery<IModuleDocument> = {}
-  ): Promise<IModuleDocument[]> {
+    filter: FilterQuery<ModuleDocument> = {}
+  ): Promise<ModuleDocument[]> {
     const result = await this.model.find(filter).sort({ rating: -1 }).limit(limit);
     return result;
   }
@@ -159,8 +157,8 @@ export class ModuleRepository extends BaseRepository<IModuleDocument> implements
    */
   async findNewest(
     limit: number = 10,
-    filter: FilterQuery<IModuleDocument> = {}
-  ): Promise<IModuleDocument[]> {
+    filter: FilterQuery<ModuleDocument> = {}
+  ): Promise<ModuleDocument[]> {
     const result = await this.model.find(filter).sort({ createdAt: -1 }).limit(limit);
     return result;
   }
@@ -174,8 +172,8 @@ export class ModuleRepository extends BaseRepository<IModuleDocument> implements
    */
   async searchModules(
     query: string,
-    filter: FilterQuery<IModuleDocument> = {}
-  ): Promise<IModuleDocument[]> {
+    filter: FilterQuery<ModuleDocument> = {}
+  ): Promise<ModuleDocument[]> {
     return this.model.find({
       ...filter,
       $text: { $search: query },
@@ -188,10 +186,9 @@ export class ModuleRepository extends BaseRepository<IModuleDocument> implements
    * @param moduleId The module ID
    */
   async incrementInstallCount(moduleId: string): Promise<void> {
-    const module = await this.findById(moduleId);
-    if (module) {
-      await module.incrementInstallCount();
-    }
+    await this.model.findByIdAndUpdate(moduleId, {
+      $inc: { installCount: 1 },
+    });
   }
 
   /**
@@ -203,7 +200,15 @@ export class ModuleRepository extends BaseRepository<IModuleDocument> implements
   async updateRating(moduleId: string, newRating: number): Promise<void> {
     const module = await this.findById(moduleId);
     if (module) {
-      await module.updateRating(newRating);
+      // Calculate new average rating
+      const currentRating = module.rating || 0;
+      const ratingCount = module.ratingCount || 0;
+      const newAverage = (currentRating * ratingCount + newRating) / (ratingCount + 1);
+
+      await this.model.findByIdAndUpdate(moduleId, {
+        $set: { rating: newAverage },
+        $inc: { ratingCount: 1 },
+      });
     }
   }
 
@@ -214,10 +219,7 @@ export class ModuleRepository extends BaseRepository<IModuleDocument> implements
    * @param status The new review status
    * @returns The updated module or null if not found
    */
-  async updateReviewStatus(
-    moduleId: string,
-    status: ReviewStatus
-  ): Promise<IModuleDocument | null> {
+  async updateReviewStatus(moduleId: string, status: ReviewStatus): Promise<ModuleDocument | null> {
     return this.updateById(moduleId, { reviewStatus: status });
   }
 
@@ -227,7 +229,7 @@ export class ModuleRepository extends BaseRepository<IModuleDocument> implements
    * @param moduleId The module ID
    * @returns The updated module or null if not found
    */
-  async publishModule(moduleId: string): Promise<IModuleDocument | null> {
+  async publishModule(moduleId: string): Promise<ModuleDocument | null> {
     return this.updateById(moduleId, {
       publishedAt: new Date(),
       reviewStatus: ReviewStatus.APPROVED,

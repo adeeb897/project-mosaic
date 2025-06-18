@@ -27,7 +27,7 @@ const validate = (req: Request, res: Response, next: NextFunction) => {
  */
 router.post(
   '/register',
-  authMiddleware,
+  ...authMiddleware,
   [
     body('name').notEmpty().withMessage('Module name is required'),
     body('description').notEmpty().withMessage('Module description is required'),
@@ -65,7 +65,7 @@ router.post(
  */
 router.put(
   '/:moduleId',
-  authMiddleware,
+  ...authMiddleware,
   [
     param('moduleId').notEmpty().withMessage('Module ID is required'),
     body('description').optional().isString(),
@@ -97,7 +97,7 @@ router.put(
  */
 router.post(
   '/:moduleId/versions',
-  authMiddleware,
+  ...authMiddleware,
   [
     param('moduleId').notEmpty().withMessage('Module ID is required'),
     body('version').notEmpty().withMessage('Version is required'),
@@ -265,7 +265,7 @@ router.get(
  */
 router.post(
   '/:moduleId/install',
-  authMiddleware,
+  ...authMiddleware,
   [
     param('moduleId').notEmpty().withMessage('Module ID is required'),
     body('version').notEmpty().withMessage('Version is required'),
@@ -298,7 +298,7 @@ router.post(
  * @desc    Get user's module installations
  * @access  Private (requires authentication)
  */
-router.get('/installations', authMiddleware, async (req: Request, res: Response) => {
+router.get('/installations', ...authMiddleware, async (req: Request, res: Response) => {
   try {
     const userId = (req as any).user.id;
     const installations = await moduleRegistry.getUserInstallations(userId);
@@ -323,7 +323,7 @@ router.get('/installations', authMiddleware, async (req: Request, res: Response)
  */
 router.put(
   '/:moduleId/installation',
-  authMiddleware,
+  ...authMiddleware,
   [
     param('moduleId').notEmpty().withMessage('Module ID is required'),
     body('enabled').optional().isBoolean(),
@@ -392,7 +392,7 @@ router.get(
  */
 router.post(
   '/:moduleId/check-conflicts',
-  authMiddleware,
+  ...authMiddleware,
   [param('moduleId').notEmpty().withMessage('Module ID is required')],
   validate,
   async (req: Request, res: Response) => {
@@ -422,7 +422,7 @@ router.post(
  */
 router.post(
   '/:moduleId/versions/:version/deprecate',
-  authMiddleware,
+  ...authMiddleware,
   [
     param('moduleId').notEmpty().withMessage('Module ID is required'),
     param('version').notEmpty().withMessage('Version is required'),
@@ -458,7 +458,7 @@ router.post(
  */
 router.post(
   '/:moduleId/versions/:version/yank',
-  authMiddleware,
+  ...authMiddleware,
   [
     param('moduleId').notEmpty().withMessage('Module ID is required'),
     param('version').notEmpty().withMessage('Version is required'),
@@ -490,7 +490,7 @@ router.post(
  */
 router.patch(
   '/:moduleId/metadata',
-  authMiddleware,
+  ...authMiddleware,
   [
     param('moduleId').notEmpty().withMessage('Module ID is required'),
     body('tags').optional().isArray(),
@@ -522,7 +522,7 @@ router.patch(
  */
 router.post(
   '/:moduleId/tags',
-  authMiddleware,
+  ...authMiddleware,
   [
     param('moduleId').notEmpty().withMessage('Module ID is required'),
     body('tags').isArray().withMessage('Tags must be an array'),
@@ -552,7 +552,7 @@ router.post(
  */
 router.delete(
   '/:moduleId/tags',
-  authMiddleware,
+  ...authMiddleware,
   [
     param('moduleId').notEmpty().withMessage('Module ID is required'),
     body('tags').isArray().withMessage('Tags must be an array'),
@@ -582,7 +582,7 @@ router.delete(
  */
 router.post(
   '/:moduleId/rate',
-  authMiddleware,
+  ...authMiddleware,
   [
     param('moduleId').notEmpty().withMessage('Module ID is required'),
     body('rating').isFloat({ min: 0, max: 5 }).withMessage('Rating must be between 0 and 5'),

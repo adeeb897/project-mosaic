@@ -366,7 +366,7 @@ export class ModuleRegistryService implements IModuleRegistryService {
         ];
       }
 
-      const modules = await ModuleModel.find(query).sort({ installCount: -1, rating: -1 });
+      const modules = await ModuleModel.find(query).sort({ installCount: -1, rating: -1 }).exec();
 
       return modules.map(this.documentToModule);
     } catch (error) {
@@ -406,7 +406,7 @@ export class ModuleRegistryService implements IModuleRegistryService {
    */
   async getModuleVersions(moduleId: string): Promise<ModuleVersion[]> {
     try {
-      const versions = await ModuleVersionModel.find({ moduleId }).sort({ createdAt: -1 });
+      const versions = await ModuleVersionModel.find({ moduleId }).sort({ createdAt: -1 }).exec();
       return versions.map(this.documentToModuleVersion);
     } catch (error) {
       logger.error('Failed to get module versions:', error);
@@ -762,7 +762,6 @@ export class ModuleRegistryService implements IModuleRegistryService {
       if (!versionDoc) {
         throw new Error(`Version ${version} not found for module ${moduleId}`);
       }
-
       // Emit deprecation event
       this.eventEmitter.emit('module:version:deprecated', {
         moduleId,

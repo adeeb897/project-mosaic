@@ -8,6 +8,9 @@ import {
 } from '../../core/models/Module';
 import { ModuleType } from '../../core/types/ModuleTypes';
 
+// Re-export Module type for use in repositories
+export { Module } from '../../core/models/Module';
+
 /**
  * Module document interface
  */

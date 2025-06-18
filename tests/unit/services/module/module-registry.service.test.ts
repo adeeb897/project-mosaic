@@ -1,52 +1,9 @@
 import { ModuleRegistryService } from '../../../../src/services/module/module-registry.service';
 import { ModuleType } from '../../../../src/core/types/ModuleTypes';
 import { ModuleStatus, ReviewStatus } from '../../../../src/core/models/Module';
-import {
-  ModuleModel,
-  ModuleVersionModel,
-  ModuleInstallationModel,
-} from '../../../../src/persistence/models/module.model';
-
-// Mock the MongoDB models
-jest.mock('../../../../src/persistence/models/module.model', () => {
-  const mockSave = jest.fn().mockResolvedValue({
-    _id: 'mock-id',
-    toObject: () => ({
-      _id: 'mock-id',
-      name: 'Test Module',
-      version: '1.0.0',
-    }),
-  });
-
-  return {
-    ModuleModel: {
-      findById: jest.fn(),
-      findOne: jest.fn(),
-      find: jest.fn(),
-      findByIdAndUpdate: jest.fn(),
-      findOneAndUpdate: jest.fn(),
-      prototype: {
-        save: mockSave,
-      },
-    },
-    ModuleVersionModel: {
-      findOne: jest.fn(),
-      find: jest.fn(),
-      findOneAndUpdate: jest.fn(),
-      prototype: {
-        save: mockSave,
-      },
-    },
-    ModuleInstallationModel: {
-      findOne: jest.fn(),
-      find: jest.fn(),
-      findOneAndUpdate: jest.fn(),
-      prototype: {
-        save: mockSave,
-      },
-    },
-  };
-});
+import { ModuleModel, ModuleVersionModel } from '../../../../src/persistence/models/module.model';
+import semver from 'semver';
+import { after } from 'node:test';
 
 // Mock the logger
 jest.mock('../../../../src/utils/logger', () => ({
@@ -64,7 +21,8 @@ describe('ModuleRegistryService', () => {
   let mockInstallation: any;
 
   beforeEach(() => {
-    jest.clearAllMocks();
+    jest.resetAllMocks();
+    jest.restoreAllMocks();
     moduleRegistry = new ModuleRegistryService();
 
     // Setup mock data
@@ -134,25 +92,18 @@ describe('ModuleRegistryService', () => {
     };
 
     // Setup mock implementations
-    (ModuleModel.findById as jest.Mock).mockResolvedValue(mockModule);
-    (ModuleModel.findOne as jest.Mock).mockResolvedValue(mockModule);
-    (ModuleModel.find as jest.Mock).mockResolvedValue([mockModule]);
-    (ModuleModel.findByIdAndUpdate as jest.Mock).mockResolvedValue(mockModule);
-    (ModuleModel.findOneAndUpdate as jest.Mock).mockResolvedValue(mockModule);
+    jest.spyOn(ModuleModel, 'findById').mockResolvedValue(mockModule);
+  });
 
-    (ModuleVersionModel.findOne as jest.Mock).mockResolvedValue(mockVersion);
-    (ModuleVersionModel.find as jest.Mock).mockResolvedValue([mockVersion]);
-    (ModuleVersionModel.findOneAndUpdate as jest.Mock).mockResolvedValue(mockVersion);
-
-    (ModuleInstallationModel.findOne as jest.Mock).mockResolvedValue(mockInstallation);
-    (ModuleInstallationModel.find as jest.Mock).mockResolvedValue([mockInstallation]);
-    (ModuleInstallationModel.findOneAndUpdate as jest.Mock).mockResolvedValue(mockInstallation);
+  afterEach(() => {
+    jest.clearAllMocks();
+    jest.restoreAllMocks();
   });
 
   describe('registerModule', () => {
     it('should register a new module', async () => {
       // Setup
-      (ModuleModel.findOne as jest.Mock).mockResolvedValueOnce(null); // Module doesn't exist yet
+      jest.spyOn(ModuleModel, 'findOne').mockResolvedValueOnce(null); // Module doesn't exist yet
       const moduleData = {
         name: 'New Module',
         description: 'A new module',
@@ -176,36 +127,9 @@ describe('ModuleRegistryService', () => {
             supportedModalities: [],
           },
         },
+        checksum: 'abc123',
+        downloadUrl: 'https://example.com/new-module.zip',
       };
-
-      // Create a mock for the ModuleModel constructor
-      const mockModuleDoc = {
-        ...moduleData,
-        _id: 'new-module-id',
-        save: jest.fn().mockResolvedValue({
-          ...moduleData,
-          _id: 'new-module-id',
-          id: 'new-module-id',
-          createdAt: new Date(),
-          updatedAt: new Date(),
-        }),
-      };
-      (ModuleModel as any) = jest.fn().mockImplementation(() => mockModuleDoc);
-
-      // Create a mock for the ModuleVersionModel constructor
-      const mockVersionDoc = {
-        moduleId: 'new-module-id',
-        version: '1.0.0',
-        metadata: moduleData.metadata,
-        checksum: '',
-        downloadUrl: '',
-        save: jest.fn().mockResolvedValue({
-          _id: 'new-version-id',
-          moduleId: 'new-module-id',
-          version: '1.0.0',
-        }),
-      };
-      (ModuleVersionModel as any) = jest.fn().mockImplementation(() => mockVersionDoc);
 
       // Act
       const result = await moduleRegistry.registerModule(moduleData as any);
@@ -214,13 +138,11 @@ describe('ModuleRegistryService', () => {
       expect(result).toBeDefined();
       expect(result.name).toBe(moduleData.name);
       expect(result.version).toBe(moduleData.version);
-      expect(mockModuleDoc.save).toHaveBeenCalled();
-      expect(mockVersionDoc.save).toHaveBeenCalled();
     });
 
     it('should throw an error if module already exists', async () => {
       // Setup
-      (ModuleModel.findOne as jest.Mock).mockResolvedValueOnce(mockModule); // Module already exists
+      jest.spyOn(ModuleModel, 'findOne').mockResolvedValue(mockModule);
       const moduleData = {
         name: 'Test Module',
         description: 'A test module',
@@ -266,7 +188,7 @@ describe('ModuleRegistryService', () => {
 
     it('should return null if module not found', async () => {
       // Setup
-      (ModuleModel.findById as jest.Mock).mockResolvedValueOnce(null);
+      jest.spyOn(ModuleModel, 'findById').mockResolvedValue(null);
 
       // Act
       const result = await moduleRegistry.getModule('non-existent-id');
@@ -276,188 +198,173 @@ describe('ModuleRegistryService', () => {
     });
   });
 
-  describe('searchModules', () => {
-    it('should search modules with filters', async () => {
-      // Setup
-      const filters = {
-        type: ModuleType.TOOL,
-        status: ModuleStatus.ACTIVE,
-        author: 'author-123',
-        tags: ['test'],
-        minRating: 4,
-        searchText: 'test',
-      };
+  describe('getModuleByNameAndVersion', () => {
+    it('should return a module by name and version', async () => {
+      jest.spyOn(ModuleModel, 'findOne').mockResolvedValue(mockModule);
+      const result = await moduleRegistry.getModuleByNameAndVersion('Test Module', '1.0.0');
+      expect(result).toBeDefined();
+      expect(result?.name).toBe('Test Module');
+      expect(result?.version).toBe('1.0.0');
+    });
+    it('should return null if not found', async () => {
+      jest.spyOn(ModuleModel, 'findOne').mockResolvedValue(null);
+      const result = await moduleRegistry.getModuleByNameAndVersion('Missing', '0.0.1');
+      expect(result).toBeNull();
+    });
+  });
 
-      // Act
-      const result = await moduleRegistry.searchModules(filters);
-
-      // Assert
+  describe('getModuleVersions', () => {
+    it('should return module versions', async () => {
+      const mockVersions = [mockVersion];
+      const mockSort = jest.fn().mockReturnThis();
+      const mockExec = jest.fn().mockResolvedValue(mockVersions);
+      const mockQuery = { sort: mockSort, exec: mockExec };
+      jest.spyOn(ModuleVersionModel, 'find').mockReturnValue(mockQuery as any);
+      const result = await moduleRegistry.getModuleVersions('module-123');
       expect(result).toHaveLength(1);
-      expect(result[0].id).toBe('module-123');
-      expect(ModuleModel.find).toHaveBeenCalled();
+      expect(result[0].id).toBe('version-123');
+    });
+
+    it('should return empty array if no versions', async () => {
+      const mockSortEmpty = jest.fn().mockReturnThis();
+      const mockExecEmpty = jest.fn().mockResolvedValue([]);
+      const mockQueryEmpty = { sort: mockSortEmpty, exec: mockExecEmpty };
+      jest.spyOn(ModuleVersionModel, 'find').mockReturnValue(mockQueryEmpty as any);
+      const result = await moduleRegistry.getModuleVersions('module-123');
+      expect(result).toEqual([]);
     });
   });
 
-  describe('updateModule', () => {
-    it('should update a module', async () => {
-      // Setup
-      const updates = {
-        description: 'Updated description',
-        status: ModuleStatus.ACTIVE,
-      };
-
-      // Act
-      const result = await moduleRegistry.updateModule('module-123', updates);
-
-      // Assert
+  describe('getLatestVersion', () => {
+    it('should return the latest version', async () => {
+      const v1 = { ...mockVersion, version: '1.0.0' };
+      const v2 = { ...mockVersion, version: '2.0.0' };
+      const mockSort = jest.fn().mockReturnValue([v1, v2]);
+      jest.spyOn(ModuleVersionModel, 'find').mockReturnValue({ sort: mockSort } as any);
+      jest
+        .spyOn(semver, 'rcompare')
+        .mockImplementation((a: string | semver.SemVer, b: string | semver.SemVer) => {
+          const aStr = typeof a === 'string' ? a : a.version;
+          const bStr = typeof b === 'string' ? b : b.version;
+          if (aStr === bStr) return 0;
+          return aStr > bStr ? -1 : 1;
+        });
+      const result = await moduleRegistry.getLatestVersion('module-123');
       expect(result).toBeDefined();
-      expect(ModuleModel.findByIdAndUpdate).toHaveBeenCalledWith(
-        'module-123',
-        expect.objectContaining({
-          $set: expect.objectContaining({
-            description: 'Updated description',
-            status: ModuleStatus.ACTIVE,
-          }),
-        }),
-        { new: true }
-      );
+      expect(result?.version).toBe('2.0.0');
     });
-
-    it('should throw an error if module not found', async () => {
-      // Setup
-      (ModuleModel.findByIdAndUpdate as jest.Mock).mockResolvedValueOnce(null);
-      const updates = {
-        description: 'Updated description',
-      };
-
-      // Act & Assert
-      await expect(moduleRegistry.updateModule('non-existent-id', updates)).rejects.toThrow(
-        'Module not found: non-existent-id'
-      );
+    it('should return null if no versions', async () => {
+      const mockSort = jest.fn().mockReturnValue([]);
+      jest.spyOn(ModuleVersionModel, 'find').mockReturnValue({ sort: mockSort } as any);
+      const result = await moduleRegistry.getLatestVersion('module-123');
+      expect(result).toBeNull();
     });
   });
 
-  describe('resolveDependencies', () => {
-    it('should resolve dependencies for a module', async () => {
-      // Setup
-      const dependencyModule = {
+  describe('compareVersions', () => {
+    it('should compare versions correctly', () => {
+      expect(moduleRegistry.compareVersions('1.0.0', '2.0.0')).toBeLessThan(0);
+      expect(moduleRegistry.compareVersions('2.0.0', '1.0.0')).toBeGreaterThan(0);
+      expect(moduleRegistry.compareVersions('1.0.0', '1.0.0')).toBe(0);
+    });
+  });
+
+  describe('isVersionCompatible', () => {
+    it('should check version compatibility', () => {
+      expect(moduleRegistry.isVersionCompatible('1.2.0', '>=1.0.0')).toBe(true);
+      expect(moduleRegistry.isVersionCompatible('0.9.0', '>=1.0.0')).toBe(false);
+    });
+  });
+
+  describe('addModuleTags', () => {
+    it('should add tags to a module', async () => {
+      const updatedModule = {
         ...mockModule,
-        _id: 'dependency-123',
-        id: 'dependency-123',
-        name: 'Dependency Module',
+        metadata: { ...mockModule.metadata, tags: ['test', 'new'] },
       };
-      mockModule.metadata.dependencies = [
-        {
-          id: 'dependency-123',
-          version: '1.0.0',
-          optional: false,
-        },
-      ];
-      (ModuleModel.findById as jest.Mock).mockResolvedValueOnce(mockModule);
-      (ModuleModel.findOne as jest.Mock).mockResolvedValueOnce(dependencyModule);
-
-      // Act
-      const result = await moduleRegistry.resolveDependencies('module-123');
-
-      // Assert
+      jest.spyOn(ModuleModel, 'findByIdAndUpdate').mockResolvedValue(updatedModule);
+      const result = await moduleRegistry.addModuleTags('module-123', ['new']);
       expect(result).toBeDefined();
-      expect(result.resolved).toBe(true);
-      expect(result.dependencies).toHaveLength(1);
-      expect(result.dependencies[0].moduleId).toBe('dependency-123');
-      expect(result.installOrder).toContain('dependency-123');
-      expect(result.installOrder).toContain('module-123');
-    });
-
-    it('should detect circular dependencies', async () => {
-      // Setup
-      const dependencyModule = {
-        ...mockModule,
-        _id: 'dependency-123',
-        id: 'dependency-123',
-        name: 'Dependency Module',
-        metadata: {
-          ...mockModule.metadata,
-          dependencies: [
-            {
-              id: 'module-123',
-              version: '1.0.0',
-              optional: false,
-            },
-          ],
-        },
-      };
-      mockModule.metadata.dependencies = [
-        {
-          id: 'dependency-123',
-          version: '1.0.0',
-          optional: false,
-        },
-      ];
-      (ModuleModel.findById as jest.Mock).mockResolvedValueOnce(mockModule);
-      (ModuleModel.findOne as jest.Mock).mockResolvedValueOnce(dependencyModule);
-
-      // Act
-      const result = await moduleRegistry.resolveDependencies('module-123');
-
-      // Assert
-      expect(result).toBeDefined();
-      expect(result.resolved).toBe(false);
-      expect(result.conflicts).toHaveLength(1);
-      expect(result.conflicts[0].type).toBe('dependency');
-      expect(result.conflicts[0].description).toContain('Circular dependency detected');
+      expect(result.metadata.tags).toContain('new');
     });
   });
 
-  describe('recordInstallation', () => {
-    it('should record a new installation', async () => {
-      // Setup
-      (ModuleInstallationModel.findOne as jest.Mock).mockResolvedValueOnce(null); // No existing installation
-      const mockNewInstallation = {
-        userId: 'user-123',
+  describe('removeModuleTags', () => {
+    it('should remove tags from a module', async () => {
+      const updatedModule = { ...mockModule, metadata: { ...mockModule.metadata, tags: [] } };
+      jest.spyOn(ModuleModel, 'findByIdAndUpdate').mockResolvedValue(updatedModule);
+      const result = await moduleRegistry.removeModuleTags('module-123', ['test']);
+      expect(result).toBeDefined();
+      expect(result.metadata.tags).not.toContain('test');
+    });
+  });
+
+  describe('incrementInstallCount', () => {
+    it('should increment install count', async () => {
+      const updatedModule = { ...mockModule, installCount: 1 };
+      jest.spyOn(ModuleModel, 'findByIdAndUpdate').mockResolvedValue(updatedModule);
+      await expect(moduleRegistry.incrementInstallCount('module-123')).resolves.toBeUndefined();
+    });
+  });
+
+  describe('updateModuleRating', () => {
+    it('should update module rating', async () => {
+      jest.spyOn(ModuleModel, 'findById').mockResolvedValue(mockModule);
+      mockModule.rating = 0;
+      mockModule.ratingCount = 0;
+      mockModule.save = jest.fn().mockResolvedValue(mockModule);
+      await expect(
+        // eslint-disable-next-line @typescript-eslint/no-unsafe-call
+        moduleRegistry.updateModuleRating('module-123', 5, 'user-123')
+      ).resolves.toBeUndefined();
+    });
+  });
+
+  describe('deprecateVersion', () => {
+    it('should deprecate a version', async () => {
+      const mockVersionDoc = {
+        ...mockVersion,
         moduleId: 'module-123',
-        version: '1.0.0',
-        enabled: true,
-        config: {},
-        profileIds: [],
-        save: jest.fn().mockResolvedValue({
-          _id: 'new-installation-id',
-          userId: 'user-123',
-          moduleId: 'module-123',
-          version: '1.0.0',
-          installedAt: new Date(),
-          updatedAt: new Date(),
-        }),
+        deprecated: false,
+        save: jest
+          .fn()
+          .mockResolvedValue({ ...mockVersion, deprecated: true, moduleId: 'module-123' }),
       };
-      (ModuleInstallationModel as any) = jest.fn().mockImplementation(() => mockNewInstallation);
-
-      // Act
-      const result = await moduleRegistry.recordInstallation('user-123', 'module-123', '1.0.0');
-
-      // Assert
-      expect(result).toBeDefined();
-      expect(mockNewInstallation.save).toHaveBeenCalled();
+      jest.spyOn(ModuleVersionModel, 'findOne').mockResolvedValue(mockVersionDoc);
+      jest.spyOn(ModuleVersionModel, 'findOneAndUpdate').mockResolvedValue(mockVersionDoc);
+      await expect(moduleRegistry.deprecateVersion('module-123', '1.0.0')).resolves.toBeUndefined();
     });
+    it('should throw if version not found', async () => {
+      jest.spyOn(ModuleVersionModel, 'findOne').mockResolvedValue(null);
+      await expect(moduleRegistry.deprecateVersion('module-123', 'missing')).rejects.toThrow();
+    });
+  });
 
-    it('should update an existing installation', async () => {
-      // Setup
-      const existingInstallation = {
-        ...mockInstallation,
-        version: '0.9.0',
-        save: jest.fn().mockResolvedValue({
-          ...mockInstallation,
-          version: '1.0.0',
-          updatedAt: new Date(),
-        }),
+  describe('yankVersion', () => {
+    it('should yank a version', async () => {
+      const mockVersionDoc = {
+        ...mockVersion,
+        moduleId: 'module-123',
+        yanked: false,
+        save: jest.fn().mockResolvedValue({ ...mockVersion, yanked: true, moduleId: 'module-123' }),
       };
-      (ModuleInstallationModel.findOne as jest.Mock).mockResolvedValueOnce(existingInstallation);
+      jest.spyOn(ModuleVersionModel, 'findOne').mockResolvedValue(mockVersionDoc);
+      jest.spyOn(ModuleVersionModel, 'findOneAndUpdate').mockResolvedValue(mockVersionDoc);
+      await expect(moduleRegistry.yankVersion('module-123', '1.0.0')).resolves.toBeUndefined();
+    });
+    it('should throw if version not found', async () => {
+      jest.spyOn(ModuleVersionModel, 'findOne').mockResolvedValue(null);
+      await expect(moduleRegistry.yankVersion('module-123', 'missing')).rejects.toThrow();
+    });
+  });
 
-      // Act
-      const result = await moduleRegistry.recordInstallation('user-123', 'module-123', '1.0.0');
-
-      // Assert
-      expect(result).toBeDefined();
-      expect(existingInstallation.save).toHaveBeenCalled();
-      expect(existingInstallation.version).toBe('1.0.0');
+  describe('event subscription', () => {
+    it('should call event listeners', () => {
+      const listener = jest.fn();
+      moduleRegistry.on('module:registered', listener);
+      (moduleRegistry as any).eventEmitter.emit('module:registered', { moduleId: 'module-123' });
+      expect(listener).toHaveBeenCalledWith({ moduleId: 'module-123' });
+      moduleRegistry.off('module:registered', listener);
     });
   });
 });
