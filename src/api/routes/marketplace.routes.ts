@@ -20,24 +20,6 @@ router.get(
 );
 
 /**
- * @route   GET /api/v1/marketplace/modules/:id
- * @desc    Get marketplace module by ID
- * @access  Private
- */
-router.get(
-  '/modules/:id',
-  asyncHandler(async (req, res) => {
-    const { id } = req.params;
-
-    res.status(200).json({
-      status: 'success',
-      message: `Get marketplace module by ID: ${id} - Not implemented yet`,
-      data: { id },
-    });
-  })
-);
-
-/**
  * @route   GET /api/v1/marketplace/modules/categories
  * @desc    Get all module categories
  * @access  Private
@@ -68,6 +50,24 @@ router.get(
       status: 'success',
       message: `Search modules with query: ${query} - Not implemented yet`,
       data: [],
+    });
+  })
+);
+
+/**
+ * @route   GET /api/v1/marketplace/modules/:id
+ * @desc    Get marketplace module by ID
+ * @access  Private
+ */
+router.get(
+  '/modules/:id',
+  asyncHandler(async (req, res) => {
+    const { id } = req.params;
+
+    res.status(200).json({
+      status: 'success',
+      message: `Get marketplace module by ID: ${id} - Not implemented yet`,
+      data: { id },
     });
   })
 );

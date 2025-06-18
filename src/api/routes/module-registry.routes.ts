@@ -4,7 +4,7 @@ import { authMiddleware } from '../middleware/auth.middleware';
 import { getModuleRegistryService } from '../../services/module/module-registry.service';
 import { ModuleType } from '../../core/types/ModuleTypes';
 import { ModuleStatus, ReviewStatus } from '../../core/models/Module';
-import { logger } from '@utils/logger';
+import { logger } from '../../utils/logger';
 
 const router = Router();
 const moduleRegistry = getModuleRegistryService();

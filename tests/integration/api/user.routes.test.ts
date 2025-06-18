@@ -360,6 +360,41 @@ describe('User API Routes', () => {
         })
       );
     });
+
+    it('should return 401 for missing authorization header', async () => {
+      // Arrange
+      const userData = {
+        username: 'testuser',
+        email: 'test@example.com',
+        password: 'password123',
+      };
+
+      // Act
+      const response = await request(app)
+        .post('/api/users')
+        .send(userData);
+
+      // Assert
+      expect(response.status).toBe(401);
+    });
+
+    it('should return 401 for invalid token', async () => {
+      // Arrange
+      const userData = {
+        username: 'testuser',
+        email: 'test@example.com',
+        password: 'password123',
+      };
+
+      // Act
+      const response = await request(app)
+        .post('/api/users')
+        .set('Authorization', 'Bearer invalid-token')
+        .send(userData);
+
+      // Assert
+      expect(response.status).toBe(401);
+    });
   });
 
   describe('PUT /api/users/:id', () => {

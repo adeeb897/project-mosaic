@@ -1,6 +1,6 @@
 import { Router, Request, Response } from 'express';
-import { getDatabaseStatus } from '@persistence/database';
-import { logger } from '@utils/logger';
+import { getDatabaseStatus } from '../../persistence/database';
+import { logger } from '../../utils/logger';
 
 const router = Router();
 

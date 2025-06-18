@@ -6,6 +6,11 @@ import express, { Request, Response } from 'express';
 import { authRoutes } from './routes/auth.routes';
 import moduleRegistryRoutes from './routes/module-registry.routes';
 import { userRoutes } from './routes/user.routes';
+import { healthRoutes } from './routes/health.routes';
+import { marketplaceRoutes } from './routes/marketplace.routes';
+import { chatRoutes } from './routes/chat.routes';
+import { moduleRoutes } from './routes/module.routes';
+import { profileRoutes } from './routes/profile.routes';
 import { errorHandler } from './middleware/error.middleware';
 
 /**
@@ -25,10 +30,25 @@ export const setupRoutes = (app: express.Express): void => {
   // Mount user routes
   app.use('/api/users', userRoutes);
 
+  // Mount health routes
+  app.use('/api/health', healthRoutes);
+
+  // Mount marketplace routes
+  app.use('/api/v1/marketplace', marketplaceRoutes);
+
+  // Mount chat routes
+  app.use('/api/v1/chat', chatRoutes);
+
+  // Mount module routes
+  app.use('/api/v1/modules', moduleRoutes);
+
+  // Mount profile routes
+  app.use('/api/v1/profiles', profileRoutes);
+
   // Mount the API router
   app.use('/api', router);
 
-  // Add health check route
+  // Add simple health check route
   app.get('/health', (req: Request, res: Response) => {
     res.status(200).json({ status: 'ok' });
   });
