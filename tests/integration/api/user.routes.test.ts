@@ -9,21 +9,12 @@ import { UserStatus } from '../../../src/types';
 import { generateMockUser, generateId } from '../../utils/mock-data-generator';
 import { generateTestToken } from '../../utils/test-utils';
 
-// Define a type for our mock user
-interface MockUser {
-  id: string;
-  username: string;
-  email: string;
-  status?: UserStatus;
-  [key: string]: unknown;
-}
-
 // Mock the database module
 jest.mock('../../../src/persistence/database', () => {
   // Store mock data in memory for the duration of the tests
   const users: Record<string, any> = {};
   const mockGenerateId = () => Math.random().toString(36).substring(2, 9);
-  
+
   return {
     // Function to clear all data (for testing)
     __clearAllUsers: () => {
@@ -37,13 +28,10 @@ jest.mock('../../../src/persistence/database', () => {
               return users[query.id] || null;
             } else if (query.username) {
               return (
-                Object.values(users).find((user: any) => user.username === query.username) ||
-                null
+                Object.values(users).find((user: any) => user.username === query.username) || null
               );
             } else if (query.email) {
-              return (
-                Object.values(users).find((user: any) => user.email === query.email) || null
-              );
+              return Object.values(users).find((user: any) => user.email === query.email) || null;
             }
             return null;
           }),
@@ -52,9 +40,7 @@ jest.mock('../../../src/persistence/database', () => {
 
             // Apply filters
             if (query.status) {
-              filteredUsers = filteredUsers.filter(
-                (user: any) => user.status === query.status
-              );
+              filteredUsers = filteredUsers.filter((user: any) => user.status === query.status);
             }
 
             return {

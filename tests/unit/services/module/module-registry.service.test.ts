@@ -3,7 +3,6 @@ import { ModuleType } from '../../../../src/core/types/ModuleTypes';
 import { ModuleStatus, ReviewStatus } from '../../../../src/core/models/Module';
 import { ModuleModel, ModuleVersionModel } from '../../../../src/persistence/models/module.model';
 import semver from 'semver';
-import { after } from 'node:test';
 
 // Mock the logger
 jest.mock('../../../../src/utils/logger', () => ({
