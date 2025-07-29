@@ -2,11 +2,39 @@ import React, { useState } from 'react';
 import { useTheme } from '../../../contexts/ThemeContext';
 import { useUser } from '../../../contexts/UserContext';
 import { useAccessibility } from '../../../contexts/AccessibilityContext';
-import { ThemeToggle } from '../../theme/ThemeToggle/ThemeToggle';
 import styles from './Header.module.css';
 
+// Simple Theme Toggle Component
+const SimpleThemeToggle: React.FC = () => {
+  const { state, toggleTheme } = useTheme();
+  const { announce } = useAccessibility();
+
+  const handleToggle = () => {
+    toggleTheme();
+    announce(`Switched to ${state.effectiveTheme === 'light' ? 'dark' : 'light'} theme`);
+  };
+
+  return (
+    <button
+      className={styles.themeToggle}
+      onClick={handleToggle}
+      aria-label={`Switch to ${state.effectiveTheme === 'light' ? 'dark' : 'light'} theme`}
+      title={`Switch to ${state.effectiveTheme === 'light' ? 'dark' : 'light'} theme`}
+    >
+      <svg viewBox="0 0 24 24" fill="currentColor" width="20" height="20">
+        {state.effectiveTheme === 'light' ? (
+          // Moon icon for dark mode
+          <path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z" />
+        ) : (
+          // Sun icon for light mode
+          <path d="M12 2v2m0 16v2M4.22 4.22l1.42 1.42m12.72 12.72l1.42 1.42M2 12h2m16 0h2M4.22 19.78l1.42-1.42M18.36 5.64l1.42-1.42M12 7a5 5 0 1 0 0 10 5 5 0 0 0 0-10z" />
+        )}
+      </svg>
+    </button>
+  );
+};
+
 export const Header: React.FC = () => {
-  useTheme();
   const { state: userState, logout } = useUser();
   const { announce } = useAccessibility();
   const [isUserMenuOpen, setIsUserMenuOpen] = useState(false);
@@ -28,42 +56,18 @@ export const Header: React.FC = () => {
         <div className={styles.brand}>
           <h1 className={styles.logo}>
             <span className={styles.logoIcon} aria-hidden="true">
-              🧩
+              <svg viewBox="0 0 24 24" fill="currentColor" width="28" height="28">
+                <path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z" />
+              </svg>
             </span>
             Project Mosaic
           </h1>
         </div>
 
-        {/* Navigation */}
-        <nav className={styles.nav} role="navigation" aria-label="Main navigation" id="navigation">
-          <ul className={styles.navList}>
-            <li>
-              <a href="/dashboard" className={styles.navLink}>
-                Dashboard
-              </a>
-            </li>
-            <li>
-              <a href="/chat" className={styles.navLink}>
-                Chat
-              </a>
-            </li>
-            <li>
-              <a href="/modules" className={styles.navLink}>
-                Modules
-              </a>
-            </li>
-            <li>
-              <a href="/profiles" className={styles.navLink}>
-                Profiles
-              </a>
-            </li>
-          </ul>
-        </nav>
-
-        {/* Actions */}
+        {/* Actions - Simplified */}
         <div className={styles.actions}>
           {/* Theme Toggle */}
-          <ThemeToggle />
+          <SimpleThemeToggle />
 
           {/* User Menu */}
           <div className={styles.userMenu}>
@@ -75,25 +79,20 @@ export const Header: React.FC = () => {
               aria-label={`User menu for ${userState.user?.displayName || userState.user?.username}`}
             >
               <span className={styles.userAvatar} aria-hidden="true">
-                {userState.user?.displayName?.[0] || userState.user?.username?.[0] || 'U'}
+                {userState.user?.displayName?.[0] || userState.user?.username?.[0] || 'd'}
               </span>
               <span className={styles.userName}>
-                {userState.user?.displayName || userState.user?.username}
+                {userState.user?.displayName || userState.user?.username || 'dev'}
               </span>
               <span className={styles.chevron} aria-hidden="true">
-                ▼
+                <svg viewBox="0 0 24 24" fill="currentColor" width="16" height="16">
+                  <path d="M7 10l5 5 5-5z" />
+                </svg>
               </span>
             </button>
 
             {isUserMenuOpen && (
               <div className={styles.userMenuDropdown} role="menu">
-                <a href="/settings" className={styles.menuItem} role="menuitem">
-                  Settings
-                </a>
-                <a href="/profile" className={styles.menuItem} role="menuitem">
-                  Profile
-                </a>
-                <hr className={styles.menuDivider} />
                 <button className={styles.menuItem} onClick={handleLogout} role="menuitem">
                   Sign Out
                 </button>

@@ -3,9 +3,21 @@
   top: 0;
   z-index: var(--z-sticky);
   height: var(--header-height);
-  background-color: var(--color-background);
-  border-bottom: 1px solid var(--color-border);
-  backdrop-filter: blur(8px);
+  background: var(--color-background-glass);
+  backdrop-filter: var(--glass-backdrop);
+  border-bottom: var(--glass-border);
+  box-shadow: var(--glass-shadow);
+}
+
+.header::before {
+  content: '';
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  height: 1px;
+  background: var(--color-border-gradient);
+  opacity: 0.5;
 }
 
 .container {
@@ -13,9 +25,9 @@
   align-items: center;
   justify-content: space-between;
   height: 100%;
-  max-width: 1280px;
+  max-width: 1400px;
   margin: 0 auto;
-  padding: 0 var(--spacing-lg);
+  padding: 0 var(--spacing-xl);
 }
 
 /* Brand */
@@ -27,62 +39,90 @@
 .logo {
   display: flex;
   align-items: center;
-  gap: var(--spacing-sm);
+  gap: var(--spacing-md);
   margin: 0;
   font-size: var(--font-size-xl);
   font-weight: var(--font-weight-bold);
   color: var(--color-text-primary);
+  transition: all var(--transition-normal);
+}
+
+.logo:hover {
+  transform: scale(1.02);
 }
 
 .logoIcon {
-  font-size: 1.5rem;
+  font-size: 1.75rem;
+  background: var(--color-primary-gradient);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+  transition: all var(--transition-normal);
 }
 
-/* Navigation */
-.nav {
-  flex: 1;
-  margin: 0 var(--spacing-xl);
+.logo:hover .logoIcon {
+  filter: drop-shadow(0 0 8px rgba(124, 58, 237, 0.3));
 }
 
-.navList {
+/* Theme Toggle */
+.themeToggle {
   display: flex;
   align-items: center;
-  gap: var(--spacing-lg);
-  list-style: none;
-  margin: 0;
-  padding: 0;
-}
-
-.navLink {
-  display: block;
-  padding: var(--spacing-sm) var(--spacing-md);
+  justify-content: center;
+  width: 2.5rem;
+  height: 2.5rem;
+  background: var(--color-background-glass);
+  backdrop-filter: var(--glass-backdrop);
+  border: var(--glass-border);
+  border-radius: 50%;
   color: var(--color-text-secondary);
-  text-decoration: none;
-  border-radius: var(--border-radius-md);
-  transition: all var(--transition-fast);
-  font-weight: var(--font-weight-medium);
+  cursor: pointer;
+  transition: all var(--transition-normal);
+  position: relative;
+  overflow: hidden;
 }
 
-.navLink:hover {
+.themeToggle::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: var(--color-primary-gradient);
+  opacity: 0;
+  transition: opacity var(--transition-normal);
+  border-radius: 50%;
+}
+
+.themeToggle:hover {
+  background: var(--color-background-glass-hover);
   color: var(--color-text-primary);
-  background-color: var(--color-background-secondary);
+  transform: scale(1.05);
+  box-shadow: var(--glass-shadow-hover);
 }
 
-.navLink:focus {
+.themeToggle:hover::before {
+  opacity: 0.1;
+}
+
+.themeToggle:focus {
   outline: 2px solid var(--color-border-focus);
   outline-offset: 2px;
 }
 
-.navLink.active {
-  color: var(--color-primary);
-  background-color: var(--color-primary-light);
+.themeToggle svg {
+  position: relative;
+  z-index: 1;
+  transition: transform var(--transition-normal);
+}
+
+.themeToggle:hover svg {
+  transform: scale(1.1);
 }
 
 /* Actions */
 .actions {
   display: flex;
   align-items: center;
-  gap: var(--spacing-md);
+  gap: var(--spacing-lg);
 }
 
 /* User Menu */
@@ -93,19 +133,36 @@
 .userMenuButton {
   display: flex;
   align-items: center;
-  gap: var(--spacing-sm);
-  padding: var(--spacing-sm);
-  background: none;
-  border: 1px solid var(--color-border);
-  border-radius: var(--border-radius-md);
+  gap: var(--spacing-md);
+  padding: var(--spacing-sm) var(--spacing-md);
+  background: var(--color-background-glass);
+  backdrop-filter: var(--glass-backdrop);
+  border: var(--glass-border);
+  border-radius: var(--border-radius-xl);
   color: var(--color-text-primary);
   cursor: pointer;
-  transition: all var(--transition-fast);
+  transition: all var(--transition-normal);
+  position: relative;
+  overflow: hidden;
+}
+
+.userMenuButton::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: var(--color-primary-gradient);
+  opacity: 0;
+  transition: opacity var(--transition-normal);
 }
 
 .userMenuButton:hover {
-  background-color: var(--color-background-secondary);
-  border-color: var(--color-border-hover);
+  background: var(--color-background-glass-hover);
+  transform: translateY(-2px);
+  box-shadow: var(--glass-shadow-hover);
+}
+
+.userMenuButton:hover::before {
+  opacity: 0.1;
 }
 
 .userMenuButton:focus {
@@ -117,22 +174,29 @@
   display: flex;
   align-items: center;
   justify-content: center;
-  width: 2rem;
-  height: 2rem;
-  background-color: var(--color-primary);
+  width: 2.25rem;
+  height: 2.25rem;
+  background: var(--color-primary-gradient);
   color: var(--color-text-inverse);
   border-radius: 50%;
   font-weight: var(--font-weight-bold);
   font-size: var(--font-size-sm);
+  position: relative;
+  z-index: 1;
+  box-shadow: 0 2px 8px rgba(124, 58, 237, 0.3);
 }
 
 .userName {
   font-weight: var(--font-weight-medium);
+  position: relative;
+  z-index: 1;
 }
 
 .chevron {
-  font-size: var(--font-size-xs);
-  transition: transform var(--transition-fast);
+  font-size: var(--font-size-sm);
+  transition: transform var(--transition-normal);
+  position: relative;
+  z-index: 1;
 }
 
 .userMenuButton[aria-expanded='true'] .chevron {
@@ -141,45 +205,66 @@
 
 .userMenuDropdown {
   position: absolute;
-  top: calc(100% + var(--spacing-xs));
+  top: calc(100% + var(--spacing-sm));
   right: 0;
-  min-width: 12rem;
-  background-color: var(--color-background);
-  border: 1px solid var(--color-border);
-  border-radius: var(--border-radius-md);
-  box-shadow: var(--shadow-lg);
+  min-width: 14rem;
+  background: var(--color-background-glass);
+  backdrop-filter: var(--glass-backdrop);
+  border: var(--glass-border);
+  border-radius: var(--border-radius-xl);
+  box-shadow: var(--glass-shadow-hover);
   z-index: var(--z-dropdown);
-  animation: fadeIn var(--transition-fast) ease-out;
+  animation: slideInRight var(--transition-normal) ease-out;
+  overflow: hidden;
 }
 
 .menuItem {
   display: block;
   width: 100%;
-  padding: var(--spacing-sm) var(--spacing-md);
+  padding: var(--spacing-md) var(--spacing-lg);
   color: var(--color-text-primary);
   text-decoration: none;
   background: none;
   border: none;
   text-align: left;
   cursor: pointer;
-  transition: background-color var(--transition-fast);
+  transition: all var(--transition-normal);
   font-size: var(--font-size-sm);
+  font-weight: var(--font-weight-medium);
+  position: relative;
+  overflow: hidden;
+}
+
+.menuItem::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: var(--color-primary-gradient);
+  opacity: 0;
+  transition: opacity var(--transition-normal);
 }
 
 .menuItem:hover {
-  background-color: var(--color-background-secondary);
+  background: var(--color-background-glass-hover);
+  color: var(--color-text-primary);
+  transform: translateX(4px);
+}
+
+.menuItem:hover::before {
+  opacity: 0.1;
 }
 
 .menuItem:focus {
   outline: 2px solid var(--color-border-focus);
   outline-offset: -2px;
-  background-color: var(--color-background-secondary);
+  background: var(--color-background-glass-hover);
 }
 
 .menuDivider {
-  margin: var(--spacing-xs) 0;
+  margin: var(--spacing-sm) 0;
   border: none;
   border-top: 1px solid var(--color-border);
+  opacity: 0.3;
 }
 
 /* Mobile responsive */
