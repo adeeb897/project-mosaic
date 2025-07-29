@@ -1,7 +1,15 @@
 import { Router } from 'express';
 import { asyncHandler } from '../middleware';
+import { authenticate } from '../middleware/auth.middleware';
+import { getChatService } from '../../services/chat/chat.service';
 
 const router = Router();
+
+// Apply authentication to all routes
+router.use(authenticate);
+
+// Get chat service instance
+const chatService = getChatService();
 
 /**
  * @route   GET /api/v1/chat/sessions
@@ -11,11 +19,14 @@ const router = Router();
 router.get(
   '/sessions',
   asyncHandler(async (req, res) => {
-    res.status(200).json({
-      status: 'success',
-      message: 'Get all chat sessions - Not implemented yet',
-      data: [],
-    });
+    const { userId } = req.query;
+    const currentUserId = req.user?.id;
+
+    // Use current user ID if not provided or if different from authenticated user
+    const targetUserId = (userId as string) || currentUserId || 'dev-user-id';
+
+    const sessions = await chatService.getSessions(targetUserId);
+    res.status(200).json(sessions);
   })
 );
 
@@ -29,11 +40,12 @@ router.get(
   asyncHandler(async (req, res) => {
     const { id } = req.params;
 
-    res.status(200).json({
-      status: 'success',
-      message: `Get chat session by ID: ${id} - Not implemented yet`,
-      data: { id },
-    });
+    const session = await chatService.getSession(id);
+    if (!session) {
+      return res.status(404).json({ error: 'Session not found' });
+    }
+
+    res.status(200).json(session);
   })
 );
 
@@ -45,52 +57,73 @@ router.get(
 router.post(
   '/sessions',
   asyncHandler(async (req, res) => {
-    const sessionData = req.body;
+    const { title, userId, profileId } = req.body;
+    const currentUserId = req.user?.id;
 
-    res.status(201).json({
-      status: 'success',
-      message: 'Create chat session - Not implemented yet',
-      data: { ...sessionData, id: 'new-session-id' },
-    });
+    // Use current user ID if not provided
+    const targetUserId = userId || currentUserId;
+
+    const newSession = await chatService.createSession(targetUserId, title, profileId);
+    res.status(201).json(newSession);
   })
 );
 
 /**
- * @route   POST /api/v1/chat/messages
- * @desc    Send a new chat message
- * @access  Private
- */
-router.post(
-  '/messages',
-  asyncHandler(async (req, res) => {
-    const messageData = req.body;
-
-    res.status(201).json({
-      status: 'success',
-      message: 'Send chat message - Not implemented yet',
-      data: {
-        ...messageData,
-        id: 'new-message-id',
-        timestamp: new Date().toISOString(),
-      },
-    });
-  })
-);
-
-/**
- * @route   GET /api/v1/chat/messages/:sessionId
+ * @route   GET /api/v1/chat/sessions/:sessionId/messages
  * @desc    Get messages for a specific chat session
  * @access  Private
  */
 router.get(
-  '/messages/:sessionId',
+  '/sessions/:sessionId/messages',
   asyncHandler(async (req, res) => {
     const { sessionId } = req.params;
 
+    const messages = await chatService.getMessages(sessionId);
+    res.status(200).json(messages);
+  })
+);
+
+/**
+ * @route   POST /api/v1/chat/sessions/:sessionId/messages
+ * @desc    Add a new message to a chat session
+ * @access  Private
+ */
+router.post(
+  '/sessions/:sessionId/messages',
+  asyncHandler(async (req, res) => {
+    const { sessionId } = req.params;
+    const { content, role, metadata } = req.body;
+    const userId = req.user?.id;
+
+    const newMessage = await chatService.addMessage({
+      sessionId,
+      content,
+      role: role || 'user',
+      metadata: metadata || {},
+    }, userId);
+
+    res.status(201).json(newMessage);
+  })
+);
+
+/**
+ * @route   DELETE /api/v1/chat/messages/:messageId
+ * @desc    Delete a chat message
+ * @access  Private
+ */
+router.delete(
+  '/messages/:messageId',
+  asyncHandler(async (req, res) => {
+    const { messageId } = req.params;
+
+    const success = await chatService.deleteMessage(messageId);
+    if (!success) {
+      return res.status(404).json({ error: 'Message not found' });
+    }
+
     res.status(200).json({
       status: 'success',
-      message: `Get messages for session: ${sessionId} - Not implemented yet`,
-      data: [],
+      message: `Message ${messageId} deleted successfully`,
     });
   })
 );
@@ -105,9 +138,14 @@ router.delete(
   asyncHandler(async (req, res) => {
     const { id } = req.params;
 
+    const success = await chatService.deleteSession(id);
+    if (!success) {
+      return res.status(404).json({ error: 'Session not found' });
+    }
+
     res.status(200).json({
       status: 'success',
-      message: `Delete chat session: ${id} - Not implemented yet`,
+      message: `Chat session ${id} deleted successfully`,
     });
   })
 );

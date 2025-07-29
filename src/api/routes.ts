@@ -11,6 +11,7 @@ import { marketplaceRoutes } from './routes/marketplace.routes';
 import { chatRoutes } from './routes/chat.routes';
 import { moduleRoutes } from './routes/module.routes';
 import { profileRoutes } from './routes/profile.routes';
+import { aiRoutes } from './routes/ai.routes';
 import { errorHandler } from './middleware/error.middleware';
 
 /**
@@ -44,6 +45,9 @@ export const setupRoutes = (app: express.Express): void => {
 
   // Mount profile routes
   app.use('/api/v1/profiles', profileRoutes);
+
+  // Mount AI routes
+  app.use('/api/v1/ai', aiRoutes);
 
   // Mount the API router
   app.use('/api', router);

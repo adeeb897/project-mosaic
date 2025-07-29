@@ -32,15 +32,23 @@ export class ChatApiService {
   }
 
   /**
+   * Get default headers with authorization
+   */
+  private getHeaders(): Record<string, string> {
+    return {
+      'Content-Type': 'application/json',
+      Authorization: 'Bearer dev-token',
+    };
+  }
+
+  /**
    * Get all chat sessions for a user
    */
   async getSessions(userId: string): Promise<ChatSession[]> {
     try {
-      const response = await fetch(`${this.baseUrl}/chat/sessions?userId=${userId}`, {
+      const response = await fetch(`${this.baseUrl}/v1/chat/sessions?userId=${userId}`, {
         method: 'GET',
-        headers: {
-          'Content-Type': 'application/json',
-        },
+        headers: this.getHeaders(),
         credentials: 'include',
       });
 
@@ -61,11 +69,9 @@ export class ChatApiService {
    */
   async getSession(sessionId: string): Promise<ChatSession | null> {
     try {
-      const response = await fetch(`${this.baseUrl}/chat/sessions/${sessionId}`, {
+      const response = await fetch(`${this.baseUrl}/v1/chat/sessions/${sessionId}`, {
         method: 'GET',
-        headers: {
-          'Content-Type': 'application/json',
-        },
+        headers: this.getHeaders(),
         credentials: 'include',
       });
 
@@ -88,11 +94,9 @@ export class ChatApiService {
    */
   async createSession(userId: string, title?: string): Promise<ChatSession> {
     try {
-      const response = await fetch(`${this.baseUrl}/chat/sessions`, {
+      const response = await fetch(`${this.baseUrl}/v1/chat/sessions`, {
         method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
+        headers: this.getHeaders(),
         credentials: 'include',
         body: JSON.stringify({ userId, title }),
       });
@@ -114,11 +118,9 @@ export class ChatApiService {
    */
   async updateSession(sessionId: string, data: Partial<ChatSession>): Promise<ChatSession | null> {
     try {
-      const response = await fetch(`${this.baseUrl}/chat/sessions/${sessionId}`, {
+      const response = await fetch(`${this.baseUrl}/v1/chat/sessions/${sessionId}`, {
         method: 'PUT',
-        headers: {
-          'Content-Type': 'application/json',
-        },
+        headers: this.getHeaders(),
         credentials: 'include',
         body: JSON.stringify(data),
       });
@@ -142,11 +144,9 @@ export class ChatApiService {
    */
   async deleteSession(sessionId: string): Promise<boolean> {
     try {
-      const response = await fetch(`${this.baseUrl}/chat/sessions/${sessionId}`, {
+      const response = await fetch(`${this.baseUrl}/v1/chat/sessions/${sessionId}`, {
         method: 'DELETE',
-        headers: {
-          'Content-Type': 'application/json',
-        },
+        headers: this.getHeaders(),
         credentials: 'include',
       });
 
@@ -162,11 +162,9 @@ export class ChatApiService {
    */
   async getMessages(sessionId: string): Promise<ChatMessage[]> {
     try {
-      const response = await fetch(`${this.baseUrl}/chat/sessions/${sessionId}/messages`, {
+      const response = await fetch(`${this.baseUrl}/v1/chat/sessions/${sessionId}/messages`, {
         method: 'GET',
-        headers: {
-          'Content-Type': 'application/json',
-        },
+        headers: this.getHeaders(),
         credentials: 'include',
       });
 
@@ -187,14 +185,15 @@ export class ChatApiService {
    */
   async addMessage(message: Omit<ChatMessage, 'id' | 'timestamp'>): Promise<ChatMessage> {
     try {
-      const response = await fetch(`${this.baseUrl}/chat/sessions/${message.sessionId}/messages`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        credentials: 'include',
-        body: JSON.stringify(message),
-      });
+      const response = await fetch(
+        `${this.baseUrl}/v1/chat/sessions/${message.sessionId}/messages`,
+        {
+          method: 'POST',
+          headers: this.getHeaders(),
+          credentials: 'include',
+          body: JSON.stringify(message),
+        }
+      );
 
       if (!response.ok) {
         throw new Error(`Failed to add message: ${response.statusText}`);
@@ -213,11 +212,9 @@ export class ChatApiService {
    */
   async deleteMessage(messageId: string): Promise<boolean> {
     try {
-      const response = await fetch(`${this.baseUrl}/chat/messages/${messageId}`, {
+      const response = await fetch(`${this.baseUrl}/v1/chat/messages/${messageId}`, {
         method: 'DELETE',
-        headers: {
-          'Content-Type': 'application/json',
-        },
+        headers: this.getHeaders(),
         credentials: 'include',
       });
 

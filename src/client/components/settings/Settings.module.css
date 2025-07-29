@@ -1,0 +1,328 @@
+.settings {
+  max-width: 800px;
+  margin: 0 auto;
+  padding: 2rem;
+  background: var(--background-color, #ffffff);
+  color: var(--text-color, #333333);
+}
+
+.header {
+  margin-bottom: 2rem;
+  border-bottom: 1px solid var(--border-color, #e0e0e0);
+  padding-bottom: 1rem;
+}
+
+.header h1 {
+  margin: 0 0 0.5rem 0;
+  font-size: 2rem;
+  font-weight: 600;
+  color: var(--primary-color, #007bff);
+}
+
+.header p {
+  margin: 0;
+  color: var(--text-secondary, #666666);
+  font-size: 1.1rem;
+}
+
+.message {
+  padding: 1rem;
+  border-radius: 8px;
+  margin-bottom: 1.5rem;
+  font-weight: 500;
+}
+
+.message.success {
+  background-color: #d4edda;
+  color: #155724;
+  border: 1px solid #c3e6cb;
+}
+
+.message.error {
+  background-color: #f8d7da;
+  color: #721c24;
+  border: 1px solid #f5c6cb;
+}
+
+.section {
+  margin-bottom: 3rem;
+}
+
+.section h2 {
+  margin: 0 0 0.5rem 0;
+  font-size: 1.5rem;
+  font-weight: 600;
+  color: var(--text-color, #333333);
+}
+
+.sectionDescription {
+  margin: 0 0 2rem 0;
+  color: var(--text-secondary, #666666);
+  font-size: 1rem;
+  line-height: 1.5;
+}
+
+.currentKeys {
+  margin-bottom: 2rem;
+}
+
+.currentKeys h3 {
+  margin: 0 0 1rem 0;
+  font-size: 1.2rem;
+  font-weight: 600;
+}
+
+.loading {
+  padding: 2rem;
+  text-align: center;
+  color: var(--text-secondary, #666666);
+  font-style: italic;
+}
+
+.keysList {
+  border: 1px solid var(--border-color, #e0e0e0);
+  border-radius: 8px;
+  overflow: hidden;
+}
+
+.keyItem {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 1rem;
+  border-bottom: 1px solid var(--border-color, #e0e0e0);
+  background: var(--background-secondary, #f8f9fa);
+}
+
+.keyItem:last-child {
+  border-bottom: none;
+}
+
+.keyInfo {
+  flex: 1;
+}
+
+.keyProvider {
+  font-weight: 600;
+  font-size: 1.1rem;
+  margin-bottom: 0.25rem;
+}
+
+.keyStatus {
+  display: flex;
+  gap: 1rem;
+  align-items: center;
+}
+
+.statusIndicator {
+  color: #28a745;
+  font-weight: 500;
+}
+
+.usageCount {
+  color: var(--text-secondary, #666666);
+  font-size: 0.9rem;
+}
+
+.deleteButton {
+  background: #dc3545;
+  color: white;
+  border: none;
+  padding: 0.5rem 1rem;
+  border-radius: 4px;
+  cursor: pointer;
+  font-weight: 500;
+  transition: background-color 0.2s;
+}
+
+.deleteButton:hover {
+  background: #c82333;
+}
+
+.deleteButton:disabled {
+  background: #6c757d;
+  cursor: not-allowed;
+}
+
+.noKeys {
+  padding: 2rem;
+  text-align: center;
+  color: var(--text-secondary, #666666);
+  background: var(--background-secondary, #f8f9fa);
+  border: 1px solid var(--border-color, #e0e0e0);
+  border-radius: 8px;
+}
+
+.addKey {
+  margin-bottom: 2rem;
+}
+
+.addKey h3 {
+  margin: 0 0 1rem 0;
+  font-size: 1.2rem;
+  font-weight: 600;
+}
+
+.keyForm {
+  background: var(--background-secondary, #f8f9fa);
+  padding: 1.5rem;
+  border-radius: 8px;
+  border: 1px solid var(--border-color, #e0e0e0);
+}
+
+.formGroup {
+  margin-bottom: 1.5rem;
+}
+
+.formGroup:last-child {
+  margin-bottom: 0;
+}
+
+.formGroup label {
+  display: block;
+  margin-bottom: 0.5rem;
+  font-weight: 600;
+  color: var(--text-color, #333333);
+}
+
+.select,
+.input {
+  width: 100%;
+  padding: 0.75rem;
+  border: 1px solid var(--border-color, #e0e0e0);
+  border-radius: 4px;
+  font-size: 1rem;
+  background: white;
+  color: var(--text-color, #333333);
+  transition: border-color 0.2s, box-shadow 0.2s;
+}
+
+.select:focus,
+.input:focus {
+  outline: none;
+  border-color: var(--primary-color, #007bff);
+  box-shadow: 0 0 0 2px rgba(0, 123, 255, 0.25);
+}
+
+.select:disabled,
+.input:disabled {
+  background: #f8f9fa;
+  color: #6c757d;
+  cursor: not-allowed;
+}
+
+.providerDescription,
+.inputHelp {
+  display: block;
+  margin-top: 0.25rem;
+  font-size: 0.875rem;
+  color: var(--text-secondary, #666666);
+  line-height: 1.4;
+}
+
+.saveButton {
+  background: var(--primary-color, #007bff);
+  color: white;
+  border: none;
+  padding: 0.75rem 1.5rem;
+  border-radius: 4px;
+  cursor: pointer;
+  font-weight: 600;
+  font-size: 1rem;
+  transition: background-color 0.2s;
+}
+
+.saveButton:hover:not(:disabled) {
+  background: #0056b3;
+}
+
+.saveButton:disabled {
+  background: #6c757d;
+  cursor: not-allowed;
+}
+
+.instructions {
+  margin-top: 2rem;
+}
+
+.instructions h3 {
+  margin: 0 0 1rem 0;
+  font-size: 1.2rem;
+  font-weight: 600;
+}
+
+.providerInstructions {
+  display: grid;
+  gap: 1.5rem;
+}
+
+.instructionItem {
+  background: var(--background-secondary, #f8f9fa);
+  padding: 1.5rem;
+  border-radius: 8px;
+  border: 1px solid var(--border-color, #e0e0e0);
+}
+
+.instructionItem h4 {
+  margin: 0 0 1rem 0;
+  font-size: 1.1rem;
+  font-weight: 600;
+  color: var(--primary-color, #007bff);
+}
+
+.instructionItem ol {
+  margin: 0 0 1rem 0;
+  padding-left: 1.5rem;
+}
+
+.instructionItem li {
+  margin-bottom: 0.5rem;
+  line-height: 1.5;
+}
+
+.instructionItem a {
+  color: var(--primary-color, #007bff);
+  text-decoration: none;
+  font-weight: 500;
+}
+
+.instructionItem a:hover {
+  text-decoration: underline;
+}
+
+.instructionItem p {
+  margin: 0;
+  color: var(--text-secondary, #666666);
+  line-height: 1.5;
+}
+
+.instructionItem strong {
+  color: var(--text-color, #333333);
+}
+
+/* Responsive design */
+@media (max-width: 768px) {
+  .settings {
+    padding: 1rem;
+  }
+
+  .header h1 {
+    font-size: 1.5rem;
+  }
+
+  .keyItem {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 1rem;
+  }
+
+  .keyStatus {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 0.5rem;
+  }
+
+  .deleteButton {
+    align-self: flex-end;
+  }
+}

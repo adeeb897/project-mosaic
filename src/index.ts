@@ -9,7 +9,8 @@ import { connectDatabase } from '@persistence/database';
 import { logger } from '@utils/logger';
 
 // Load environment variables
-dotenv.config();
+const envFile = process.env.NODE_ENV === 'production' ? '.env' : '.env.development';
+dotenv.config({ path: envFile });
 
 // Create Express application
 const app = express();

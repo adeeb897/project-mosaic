@@ -56,6 +56,74 @@ For more details, see the [detailed architecture document](modularai-detailed-ar
    # Edit .env with your configuration
    ```
 
+### AI Provider Setup
+
+Project Mosaic integrates with various AI providers to power intelligent conversations. You'll need to configure API keys for the AI providers you want to use.
+
+#### Supported AI Providers
+
+- **Anthropic Claude** ✅ (Claude 3.5 Sonnet, Haiku, Opus)
+- **OpenAI GPT** 🚧 (Coming Soon)
+- **Google Gemini** 🚧 (Coming Soon)
+
+#### Getting API Keys
+
+##### Anthropic Claude
+
+1. Visit [console.anthropic.com](https://console.anthropic.com/)
+2. Sign up or log in to your account
+3. Navigate to "API Keys" in the dashboard
+4. Click "Create Key" and copy the generated key
+5. **Note**: Claude API keys start with `sk-ant-`
+
+#### Adding API Keys to Project Mosaic
+
+You can add API keys through the web interface or via API:
+
+##### Method 1: Web Interface (Recommended)
+
+1. Start the application: `npm run dev`
+2. Open http://localhost:3000 in your browser
+3. Navigate to **Settings** in the sidebar
+4. Under "AI Provider Configuration", select your provider
+5. Paste your API key and click "Save API Key"
+6. Your key will be encrypted and stored securely
+
+##### Method 2: API Endpoint
+
+```bash
+# Add Anthropic Claude API key
+curl -X POST http://localhost:3000/api/v1/ai/providers/anthropic/api-key \
+  -H "Authorization: Bearer dev-token" \
+  -H "Content-Type: application/json" \
+  -d '{"apiKey": "sk-ant-your-api-key-here"}'
+
+# Verify configuration
+curl -X GET http://localhost:3000/api/v1/ai/providers/configured \
+  -H "Authorization: Bearer dev-token"
+```
+
+#### Security & Privacy
+
+- **Encryption**: All API keys are encrypted using AES-256-CBC encryption before storage
+- **User Isolation**: Each user's API keys are completely separate and secure
+- **No Sharing**: Your API keys are never shared, exposed, or transmitted to third parties
+- **Local Storage**: Keys are stored locally in your MongoDB database
+
+#### Testing AI Integration
+
+Once you've added an API key, test the integration:
+
+1. Navigate to the **Chat** section
+2. Send a message like "Hello! Can you tell me a programming joke?"
+3. You should receive an intelligent response from Claude
+
+#### Troubleshooting
+
+- **Invalid API Key**: Ensure your key is correct and starts with `sk-ant-` for Anthropic
+- **No Response**: Check that you've added an API key in Settings
+- **Connection Issues**: Verify your internet connection and API key validity
+
 ### Development
 
 Start both frontend and backend development servers with hot reloading:

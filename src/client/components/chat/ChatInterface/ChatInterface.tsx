@@ -124,28 +124,17 @@ export const ChatInterface: React.FC = () => {
       try {
         setIsSending(true);
 
-        // Add user message
-        const userMessage = await chatApiService.addMessage({
+        // Add user message - the backend will automatically generate AI response
+        await chatApiService.addMessage({
           sessionId: currentSession.id,
           content: content.trim(),
           role: 'user',
           metadata: attachments ? { attachments } : undefined,
         });
 
-        setMessages(prev => [...prev, userMessage]);
-
-        // TODO: Integrate with AI service for response
-        // For now, add a placeholder assistant response
-        setTimeout(async () => {
-          const assistantMessage = await chatApiService.addMessage({
-            sessionId: currentSession.id,
-            content: `I received your message: "${content.trim()}". This is a placeholder response.`,
-            role: 'assistant',
-          });
-
-          setMessages(prev => [...prev, assistantMessage]);
-          setTimeout(scrollToBottom, 100);
-        }, 1000);
+        // Reload messages to get both user message and AI response
+        const updatedMessages = await chatApiService.getMessages(currentSession.id);
+        setMessages(updatedMessages);
 
         setTimeout(scrollToBottom, 100);
       } catch (error) {

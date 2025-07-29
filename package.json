@@ -44,6 +44,9 @@
   "author": "Project Mosaic Team",
   "license": "GPL-3.0",
   "dependencies": {
+    "@langchain/anthropic": "0.3.25",
+    "@langchain/community": "0.3.49",
+    "@langchain/core": "0.3.66",
     "axios": "^1.5.0",
     "bcryptjs": "3.0.2",
     "cors": "^2.8.5",
@@ -64,7 +67,7 @@
     "uuid": "11.1.0",
     "winston": "^3.10.0",
     "ws": "^8.14.1",
-    "zod": "^3.22.2"
+    "zod": "3.25.76"
   },
   "devDependencies": {
     "@commitlint/cli": "^19.8.1",

@@ -9,13 +9,13 @@ import { LoadingSpinner } from '../../common/LoadingSpinner/LoadingSpinner';
 import styles from './AppContainer.module.css';
 
 import { ChatInterface } from '../../chat/ChatInterface/ChatInterface';
+import { Dashboard } from '../../dashboard/Dashboard/Dashboard';
+import { Settings } from '../../settings/Settings';
 
 // Placeholder components for routes
-const Dashboard = () => <div>Dashboard</div>;
 const Chat = () => <ChatInterface />;
 const Modules = () => <div>Module Management</div>;
 const Profiles = () => <div>Profile Management</div>;
-const Settings = () => <div>Settings</div>;
 const Login = () => <div>Login Page</div>;
 
 export const AppContainer: React.FC = () => {
