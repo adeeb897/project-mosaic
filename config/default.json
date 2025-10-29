@@ -1,0 +1,48 @@
+{
+  "server": {
+    "port": 3000,
+    "host": "0.0.0.0",
+    "cors": {
+      "enabled": true,
+      "origins": ["http://localhost:3000", "http://localhost:3001"]
+    }
+  },
+  "database": {
+    "pool": {
+      "min": 2,
+      "max": 10
+    }
+  },
+  "redis": {
+    "prefix": "mosaic:",
+    "retryStrategy": {
+      "maxRetries": 3,
+      "backoff": "exponential"
+    }
+  },
+  "agents": {
+    "maxConcurrent": 50,
+    "defaultTimeout": 300000,
+    "defaultModel": "gpt-4",
+    "defaultTemperature": 0.7
+  },
+  "sandbox": {
+    "defaultTimeout": 60000,
+    "maxMemory": 2048,
+    "maxCpu": 2
+  },
+  "rateLimit": {
+    "windowMs": 900000,
+    "maxRequests": 100
+  },
+  "logging": {
+    "level": "info",
+    "format": "json"
+  },
+  "features": {
+    "browserMCP": true,
+    "filesystemMCP": true,
+    "memoryMCP": true,
+    "a2aProtocol": true
+  }
+}
