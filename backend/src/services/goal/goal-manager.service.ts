@@ -21,6 +21,7 @@ import { GoalRepository } from '../../persistence/repositories/goal.repository';
 import { getDatabase } from '../../persistence/database';
 
 export class GoalManager extends EventEmitter {
+  private goals: Map<string, Goal> = new Map();
   private goalRepo: GoalRepository;
   private eventBus: EventBus;
   private managerLogger = logger.child({ service: 'goal-manager' });
@@ -30,6 +31,24 @@ export class GoalManager extends EventEmitter {
     this.eventBus = eventBus;
     const db = getDatabase();
     this.goalRepo = new GoalRepository(db.getDb());
+
+    // Load all goals from database into memory
+    this.restoreGoals();
+  }
+
+  /**
+   * Restore goals from database into memory on startup
+   */
+  private restoreGoals(): void {
+    try {
+      const savedGoals = this.goalRepo.list();
+      savedGoals.forEach((goal: Goal) => {
+        this.goals.set(goal.id, goal);
+      });
+      this.managerLogger.info(`Restored ${savedGoals.length} goals from database`);
+    } catch (error) {
+      this.managerLogger.error('Failed to restore goals from database', { error });
+    }
   }
 
   /**
@@ -52,16 +71,21 @@ export class GoalManager extends EventEmitter {
       lastUpdatedAt: new Date(),
     };
 
+    // Add to memory
+    this.goals.set(goal.id, goal);
+
     // Add to parent's children if applicable
     if (goal.parentGoalId) {
-      const parent = this.goalRepo.findById(goal.parentGoalId);
+      const parent = this.goals.get(goal.parentGoalId);
       if (parent) {
         parent.childGoalIds.push(goal.id);
         parent.lastUpdatedAt = new Date();
-        this.goalRepo.save(parent);
+        this.goals.set(parent.id, parent);
+        this.goalRepo.save(parent); // Persist to DB
       }
     }
 
+    // Persist to DB
     this.goalRepo.save(goal);
 
     this.managerLogger.info('Goal created', {
@@ -87,7 +111,7 @@ export class GoalManager extends EventEmitter {
    * Update goal status and details
    */
   async updateGoal(request: UpdateGoalRequest): Promise<Goal> {
-    const goal = this.goalRepo.findById(request.goalId);
+    const goal = this.goals.get(request.goalId);
     if (!goal) {
       throw new Error(`Goal ${request.goalId} not found`);
     }
@@ -118,6 +142,8 @@ export class GoalManager extends EventEmitter {
       goal.completedAt = new Date();
     }
 
+    // Update memory and persist to DB
+    this.goals.set(goal.id, goal);
     this.goalRepo.save(goal);
 
     this.managerLogger.info('Goal updated', {
@@ -196,47 +222,63 @@ export class GoalManager extends EventEmitter {
   }
 
   /**
-   * Query goals using repository
+   * Query goals using in-memory Map
    */
   queryGoals(query: GoalQuery): Goal[] {
-    // Use repository list method for basic queries
-    if (query.status && !Array.isArray(query.status)) {
-      return this.goalRepo.findByStatus(query.status);
+    let results = Array.from(this.goals.values());
+
+    // Filter by status
+    if (query.status) {
+      const statuses = Array.isArray(query.status) ? query.status : [query.status];
+      results = results.filter((g: Goal) => statuses.includes(g.status));
     }
 
+    // Filter by assignedTo
     if (query.assignedTo) {
-      let results = this.goalRepo.list({ assignedTo: query.assignedTo });
-      
-      // Apply additional filters
-      if (query.status) {
-        const statuses = Array.isArray(query.status) ? query.status : [query.status];
-        results = results.filter((g: Goal) => statuses.includes(g.status));
-      }
-      
-      return results;
+      results = results.filter((g: Goal) => g.assignedTo === query.assignedTo);
     }
 
+    // Filter by createdBy
+    if (query.createdBy) {
+      results = results.filter((g: Goal) => g.createdBy === query.createdBy);
+    }
+
+    // Filter by parentGoalId
     if (query.parentGoalId !== undefined) {
-      return this.goalRepo.findByParentId(query.parentGoalId);
+      if (query.parentGoalId === null) {
+        results = results.filter((g: Goal) => !g.parentGoalId);
+      } else {
+        results = results.filter((g: Goal) => g.parentGoalId === query.parentGoalId);
+      }
     }
 
-    // For complex queries, get all and filter
-    // This could be optimized with more specific repository methods
-    return this.goalRepo.list();
+    // Filter by priority
+    if (query.priority && query.priority.length > 0) {
+      results = results.filter((g: Goal) => query.priority!.includes(g.priority));
+    }
+
+    // Filter by tags
+    if (query.tags && query.tags.length > 0) {
+      results = results.filter((g: Goal) =>
+        query.tags!.some((tag) => g.tags.includes(tag))
+      );
+    }
+
+    return results;
   }
 
   /**
    * Get goal by ID
    */
   getGoal(id: string): Goal | undefined {
-    return this.goalRepo.findById(id) || undefined;
+    return this.goals.get(id);
   }
 
   /**
    * Get goal tree for visualization
    */
   getGoalTree(rootGoalId: string): GoalTree | null {
-    const goal = this.goalRepo.findById(rootGoalId);
+    const goal = this.goals.get(rootGoalId);
     if (!goal) return null;
 
     return this.buildGoalTree(goal, 0);
@@ -246,19 +288,21 @@ export class GoalManager extends EventEmitter {
    * Get all root goals (no parent)
    */
   getRootGoals(): Goal[] {
-    return this.goalRepo.findRootGoals();
+    return Array.from(this.goals.values()).filter(
+      (goal) => !goal.parentGoalId
+    );
   }
 
   /**
    * Check if all children of a goal are completed and update parent
    */
   private async checkParentCompletion(parentGoalId: string): Promise<void> {
-    const parent = this.goalRepo.findById(parentGoalId);
+    const parent = this.goals.get(parentGoalId);
     if (!parent || parent.childGoalIds.length === 0) return;
 
     const children = parent.childGoalIds
-      .map((id: string) => this.goalRepo.findById(id))
-      .filter((g): g is Goal => g !== null);
+      .map((id: string) => this.goals.get(id))
+      .filter((g): g is Goal => g !== undefined);
 
     const allCompleted = children.every((c: Goal) => c.status === 'completed');
     const anyFailed = children.some((c: Goal) => c.status === 'failed');
@@ -290,8 +334,8 @@ export class GoalManager extends EventEmitter {
    */
   private buildGoalTree(goal: Goal, depth: number): GoalTree {
     const children = goal.childGoalIds
-      .map((id: string) => this.goalRepo.findById(id))
-      .filter((g): g is Goal => g !== null)
+      .map((id: string) => this.goals.get(id))
+      .filter((g): g is Goal => g !== undefined)
       .map((childGoal: Goal) => this.buildGoalTree(childGoal, depth + 1));
 
     return {
@@ -305,7 +349,7 @@ export class GoalManager extends EventEmitter {
    * Get statistics
    */
   getStats() {
-    const goals: Goal[] = this.goalRepo.list();
+    const goals: Goal[] = Array.from(this.goals.values());
     return {
       total: goals.length,
       byStatus: {
@@ -330,7 +374,7 @@ export class GoalManager extends EventEmitter {
    * Active goals are those with status 'in_progress' or 'blocked'
    */
   async deleteGoal(goalId: string): Promise<boolean> {
-    const goal = this.goalRepo.findById(goalId);
+    const goal = this.goals.get(goalId);
 
     if (!goal) {
       throw new Error(`Goal ${goalId} not found`);
@@ -344,8 +388,8 @@ export class GoalManager extends EventEmitter {
     // Check if goal has active children
     if (goal.childGoalIds && goal.childGoalIds.length > 0) {
       const children = goal.childGoalIds
-        .map((id: string) => this.goalRepo.findById(id))
-        .filter((g): g is Goal => g !== null);
+        .map((id: string) => this.goals.get(id))
+        .filter((g): g is Goal => g !== undefined);
 
       const hasActiveChildren = children.some(
         (c: Goal) => c.status === 'in_progress' || c.status === 'blocked'
@@ -358,15 +402,17 @@ export class GoalManager extends EventEmitter {
 
     // Remove from parent's children if applicable
     if (goal.parentGoalId) {
-      const parent = this.goalRepo.findById(goal.parentGoalId);
+      const parent = this.goals.get(goal.parentGoalId);
       if (parent) {
         parent.childGoalIds = parent.childGoalIds.filter((id: string) => id !== goalId);
         parent.lastUpdatedAt = new Date();
-        this.goalRepo.save(parent);
+        this.goals.set(parent.id, parent);
+        this.goalRepo.save(parent); // Persist to DB
       }
     }
 
-    // Delete the goal
+    // Delete from memory and DB
+    this.goals.delete(goalId);
     const deleted = this.goalRepo.delete(goalId);
 
     if (deleted) {

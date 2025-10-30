@@ -5,11 +5,12 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { Plus, Play, Square, Trash2, Loader, Sparkles, Bot, Eye, Settings } from 'lucide-react';
+import { Plus, Play, Square, Trash2, Loader, Sparkles, Bot, Eye, Settings, Target } from 'lucide-react';
 import axios from 'axios';
 import { RealtimeEvent } from '@/hooks/useWebSocket';
 import { getApiUrl } from '@/config/api';
 import { AgentConfig } from './AgentConfig';
+import { AgentGoals } from './AgentGoals';
 
 interface Agent {
   id: string;
@@ -26,19 +27,30 @@ interface AgentManagerProps {
   realtimeEvents: RealtimeEvent[];
 }
 
+interface MCPServer {
+  name: string;
+  version: string;
+  description: string;
+  tools: Array<{ name: string; description: string }>;
+}
+
 export function AgentManager({ onSessionSelect, realtimeEvents }: AgentManagerProps) {
   const [agents, setAgents] = useState<Agent[]>([]);
   const [loading, setLoading] = useState(true);
   const [showCreateForm, setShowCreateForm] = useState(false);
   const [selectedAgentId, setSelectedAgentId] = useState<string | null>(null);
+  const [selectedGoalsAgentId, setSelectedGoalsAgentId] = useState<string | null>(null);
+  const [mcpServers, setMcpServers] = useState<MCPServer[]>([]);
   const [formData, setFormData] = useState({
     name: '',
     rootGoal: '',
+    mcpServerNames: [] as string[],
   });
 
-  // Fetch agents
+  // Fetch agents and MCP servers
   useEffect(() => {
     fetchAgents();
+    fetchMcpServers();
   }, []);
 
   // Update agents from realtime events
@@ -60,13 +72,32 @@ export function AgentManager({ onSessionSelect, realtimeEvents }: AgentManagerPr
     }
   };
 
+  const fetchMcpServers = async () => {
+    try {
+      const response = await axios.get(getApiUrl('/api/agents/mcp-servers'));
+      setMcpServers(response.data.data);
+    } catch (error) {
+      console.error('Failed to fetch MCP servers:', error);
+    }
+  };
+
   const createAgent = async () => {
     try {
-      const response = await axios.post(getApiUrl('/api/agents'), formData);
+      // Only include rootGoal if it's not empty
+      const payload: any = {
+        name: formData.name,
+        mcpServerNames: formData.mcpServerNames,
+      };
+
+      if (formData.rootGoal && formData.rootGoal.trim()) {
+        payload.rootGoal = formData.rootGoal.trim();
+      }
+
+      const response = await axios.post(getApiUrl('/api/agents'), payload);
       const newAgent = response.data.data;
       setAgents([...agents, newAgent]);
       setShowCreateForm(false);
-      setFormData({ name: '', rootGoal: '' });
+      setFormData({ name: '', rootGoal: '', mcpServerNames: [] });
       // Don't auto-navigate to activity since agent isn't started yet
     } catch (error: any) {
       alert(`Failed to create agent: ${error.response?.data?.error || error.message}`);
@@ -167,6 +198,56 @@ export function AgentManager({ onSessionSelect, realtimeEvents }: AgentManagerPr
                 Describe what you want the agent to accomplish, or leave empty to configure manually later
               </p>
             </div>
+
+            <div>
+              <label className="block text-sm font-semibold text-gray-700 mb-2">
+                Tools & Capabilities
+              </label>
+              <div className="space-y-2 bg-gray-50 rounded-xl p-4 border border-gray-200">
+                {mcpServers.length === 0 ? (
+                  <p className="text-sm text-gray-500">No tools available</p>
+                ) : (
+                  mcpServers.map((server) => (
+                    <label
+                      key={server.name}
+                      className="flex items-start gap-3 p-3 bg-white rounded-lg border border-gray-200 hover:border-purple-300 transition-colors cursor-pointer"
+                    >
+                      <input
+                        type="checkbox"
+                        checked={formData.mcpServerNames.includes(server.name)}
+                        onChange={(e) => {
+                          if (e.target.checked) {
+                            setFormData({
+                              ...formData,
+                              mcpServerNames: [...formData.mcpServerNames, server.name],
+                            });
+                          } else {
+                            setFormData({
+                              ...formData,
+                              mcpServerNames: formData.mcpServerNames.filter(
+                                (name) => name !== server.name
+                              ),
+                            });
+                          }
+                        }}
+                        className="mt-1 w-4 h-4 text-purple-600 rounded focus:ring-purple-500"
+                      />
+                      <div className="flex-1">
+                        <div className="font-medium text-gray-900">{server.name}</div>
+                        <div className="text-sm text-gray-600 mt-0.5">{server.description}</div>
+                        <div className="text-xs text-gray-500 mt-1">
+                          {server.tools.length} tool{server.tools.length !== 1 ? 's' : ''}: {server.tools.map(t => t.name).join(', ')}
+                        </div>
+                      </div>
+                    </label>
+                  ))
+                )}
+              </div>
+              <p className="text-sm text-gray-500 mt-2">
+                Select which tools this agent should have access to (leave empty for all tools)
+              </p>
+            </div>
+
             <div className="flex gap-3 pt-2">
               <button
                 onClick={createAgent}
@@ -226,11 +307,6 @@ export function AgentManager({ onSessionSelect, realtimeEvents }: AgentManagerPr
                     </div>
                   </div>
 
-                  <div className="bg-gradient-to-br from-purple-50 to-blue-50 rounded-xl p-4 mb-4">
-                    <p className="text-sm font-medium text-gray-700 mb-1">Mission:</p>
-                    <p className="text-gray-900">{agent.rootGoal}</p>
-                  </div>
-
                   <div className="flex items-center gap-2 text-xs text-gray-500">
                     <span className="px-2 py-1 bg-white/60 rounded-lg">Type: {agent.type}</span>
                     <span className="px-2 py-1 bg-white/60 rounded-lg">ID: {agent.id.slice(0, 8)}</span>
@@ -268,13 +344,20 @@ export function AgentManager({ onSessionSelect, realtimeEvents }: AgentManagerPr
               </div>
 
               {/* Action Buttons */}
-              <div className="mt-4 grid grid-cols-2 gap-2">
+              <div className="mt-4 grid grid-cols-3 gap-2">
                 <button
                   onClick={() => onSessionSelect(agent.sessionId)}
                   className="py-3 px-4 bg-gradient-to-r from-purple-400 to-blue-400 text-white rounded-xl font-medium hover:shadow-lg hover:-translate-y-0.5 transition-all duration-300 flex items-center justify-center gap-2"
                 >
                   <Eye size={18} />
                   Activity
+                </button>
+                <button
+                  onClick={() => setSelectedGoalsAgentId(agent.id)}
+                  className="py-3 px-4 bg-gradient-to-r from-yellow-400 to-orange-400 text-white rounded-xl font-medium hover:shadow-lg hover:-translate-y-0.5 transition-all duration-300 flex items-center justify-center gap-2"
+                >
+                  <Target size={18} />
+                  Goals
                 </button>
                 <button
                   onClick={() => setSelectedAgentId(agent.id)}
@@ -294,6 +377,17 @@ export function AgentManager({ onSessionSelect, realtimeEvents }: AgentManagerPr
         <AgentConfig
           agentId={selectedAgentId}
           onClose={() => setSelectedAgentId(null)}
+        />
+      )}
+
+      {/* Goals Modal */}
+      {selectedGoalsAgentId && (
+        <AgentGoals
+          agentId={selectedGoalsAgentId}
+          agentName={agents.find(a => a.id === selectedGoalsAgentId)?.name || 'Agent'}
+          agentStatus={agents.find(a => a.id === selectedGoalsAgentId)?.status || 'idle'}
+          onClose={() => setSelectedGoalsAgentId(null)}
+          onRefresh={fetchAgents}
         />
       )}
     </div>

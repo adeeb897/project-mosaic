@@ -16,6 +16,7 @@ import { EventBus } from './core/event-bus';
 import { PluginRegistry } from './core/plugin-registry';
 import { OpenAIProvider } from './llm/openai-provider';
 import { FilesystemMCPServer } from './mcp/filesystem-server';
+import { BrowserMCPServer } from './mcp/browser-server';
 import { GoalManager } from './services/goal/goal-manager.service';
 import { SessionManager } from './services/session/session-manager.service';
 import { MemoryManager } from './services/memory/memory-manager.service';
@@ -51,8 +52,15 @@ async function main() {
 
     // Initialize MCP servers
     logger.info('Registering MCP servers...');
-    const filesystemServer = new FilesystemMCPServer('./workspace');
+    const path = require('path');
+    const workspacePath = path.resolve(process.cwd(), 'workspace');
+    const screenshotsPath = path.resolve(process.cwd(), 'storage', 'screenshots');
+
+    const filesystemServer = new FilesystemMCPServer(workspacePath);
     await pluginRegistry.register(filesystemServer);
+
+    const browserServer = new BrowserMCPServer(screenshotsPath);
+    await pluginRegistry.register(browserServer);
 
     // Initialize managers
     logger.info('Initializing managers...');
@@ -69,7 +77,7 @@ async function main() {
       sessionManager,
       memoryManager,
       llmProvider,
-      [filesystemServer],
+      [filesystemServer, browserServer],
       {
         port: parseInt(process.env.PORT || '3001'),
         cors: {

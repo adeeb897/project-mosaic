@@ -594,10 +594,16 @@ export interface ServiceHealth {
 }
 
 // ============================================================================
-// Goal Hierarchy System
+// Goal Hierarchy System (Legacy - being replaced by Task Hierarchy)
 // ============================================================================
 
 export * from './goal-hierarchy';
+
+// ============================================================================
+// Task Hierarchy System
+// ============================================================================
+
+export * from './task-hierarchy';
 
 // ============================================================================
 // Session and History Management

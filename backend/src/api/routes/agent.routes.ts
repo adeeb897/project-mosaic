@@ -44,12 +44,23 @@ export function createAgentRoutes(
           continue;
         }
 
+        // Restore MCP servers from config if available
+        let restoredMcpServers = mcpServers;
+        if (savedAgent.config && typeof savedAgent.config === 'object') {
+          const config = savedAgent.config as { mcpServerNames?: string[] };
+          if (config.mcpServerNames && Array.isArray(config.mcpServerNames)) {
+            restoredMcpServers = mcpServers.filter(server =>
+              config.mcpServerNames!.includes(server.name)
+            );
+          }
+        }
+
         const agent = new GoalOrientedAgent({
           id: savedAgent.id,
           name: savedAgent.name,
           rootGoal: savedAgent.rootGoal || undefined,
           llmProvider,
-          mcpServers,
+          mcpServers: restoredMcpServers,
           eventBus: (goalManager as unknown as GoalManagerWithEventBus).eventBus,
           goalManager,
           sessionManager,
@@ -99,7 +110,7 @@ export function createAgentRoutes(
    */
   router.post('/', async (req, res) => {
     try {
-      const { name, rootGoal, sessionId, maxDepth } = req.body;
+      const { name, rootGoal, sessionId, maxDepth, mcpServerNames } = req.body;
 
       if (!name) {
         return res.status(400).json({
@@ -124,6 +135,12 @@ export function createAgentRoutes(
         });
       }
 
+      // Filter MCP servers based on selection (if provided)
+      let selectedMcpServers = mcpServers;
+      if (mcpServerNames && Array.isArray(mcpServerNames) && mcpServerNames.length > 0) {
+        selectedMcpServers = mcpServers.filter(server => mcpServerNames.includes(server.name));
+      }
+
       // Access eventBus from goalManager
       interface GoalManagerWithEventBus {
         eventBus: EventBus;
@@ -133,7 +150,7 @@ export function createAgentRoutes(
         name,
         rootGoal,
         llmProvider,
-        mcpServers,
+        mcpServers: selectedMcpServers,
         eventBus: (goalManager as unknown as GoalManagerWithEventBus).eventBus,
         goalManager,
         sessionManager,
@@ -141,13 +158,16 @@ export function createAgentRoutes(
         maxDepth: maxDepth || 3,
       });
 
-      // Persist agent to database
+      // Persist agent to database with mcpServerNames
       agentRepo.save({
         id: agent.id,
         name: agent.name,
         type: agent.type,
         status: agent.status,
-        config: { ...agent.config } as Record<string, unknown>,
+        config: {
+          ...agent.config,
+          mcpServerNames: selectedMcpServers.map(s => s.name)
+        } as Record<string, unknown>,
         metadata: agent.metadata || {},
         rootGoal,
         sessionId: session.id,
@@ -321,6 +341,323 @@ export function createAgentRoutes(
       res.json({
         success: true,
         data: { message: 'Agent removed' },
+      });
+    } catch (error: unknown) {
+      res.status(500).json({ success: false, error: error instanceof Error ? error.message : String(error) });
+    }
+  });
+
+  /**
+   * GET /api/mcp-servers
+   * List all available MCP servers
+   */
+  router.get('/mcp-servers', async (req, res) => {
+    try {
+      const servers = mcpServers.map(server => ({
+        name: server.name,
+        version: server.version,
+        description: server.metadata?.description || '',
+        tools: server.getTools().map(tool => ({
+          name: tool.name,
+          description: tool.description,
+        })),
+      }));
+
+      res.json({
+        success: true,
+        data: servers,
+      });
+    } catch (error: unknown) {
+      res.status(500).json({ success: false, error: error instanceof Error ? error.message : String(error) });
+    }
+  });
+
+  /**
+   * PATCH /api/agents/:id/config
+   * Update agent configuration
+   */
+  router.patch('/:id/config', async (req, res) => {
+    try {
+      const agent = activeAgents.get(req.params.id);
+
+      if (!agent) {
+        return res.status(404).json({
+          success: false,
+          error: 'Agent not found',
+        });
+      }
+
+      if (agent.status === 'running') {
+        return res.status(400).json({
+          success: false,
+          error: 'Cannot update configuration while agent is running. Stop the agent first.',
+        });
+      }
+
+      const { mcpServerNames, maxDepth, rootGoal } = req.body;
+
+      // Update MCP servers if provided
+      if (mcpServerNames && Array.isArray(mcpServerNames)) {
+        const selectedMcpServers = mcpServers.filter(server =>
+          mcpServerNames.includes(server.name)
+        );
+
+        // Access private field to update MCP servers (TypeScript workaround)
+        const agentWithMcpServers = agent as any;
+        agentWithMcpServers.mcpServers = new Map();
+        selectedMcpServers.forEach(server => {
+          agentWithMcpServers.mcpServers.set(server.name, server);
+        });
+
+        // Update config in database
+        agent.config = {
+          ...agent.config,
+          tools: selectedMcpServers.map(s => s.name),
+        };
+      }
+
+      // Update maxDepth if provided
+      if (maxDepth !== undefined) {
+        const agentWithMaxDepth = agent as any;
+        agentWithMaxDepth.maxDepth = maxDepth;
+      }
+
+      // Update rootGoal if provided
+      if (rootGoal !== undefined) {
+        agent.metadata.rootGoal = rootGoal;
+      }
+
+      // Save to database
+      agentRepo.save({
+        id: agent.id,
+        name: agent.name,
+        type: agent.type,
+        status: agent.status,
+        config: { ...agent.config } as Record<string, unknown>,
+        metadata: agent.metadata || {},
+        rootGoal: agent.metadata.rootGoal,
+        sessionId: (agent as GoalOrientedAgent).getConfiguration().sessionId,
+        createdAt: new Date(agent.metadata.createdAt),
+        updatedAt: new Date(),
+      });
+
+      res.json({
+        success: true,
+        data: {
+          id: agent.id,
+          message: 'Agent configuration updated',
+          config: (agent as GoalOrientedAgent).getConfiguration(),
+        },
+      });
+    } catch (error: unknown) {
+      res.status(500).json({ success: false, error: error instanceof Error ? error.message : String(error) });
+    }
+  });
+
+  // ===== Goal Management Endpoints =====
+
+  /**
+   * GET /api/agents/:id/goals
+   * Get all goals assigned to an agent
+   */
+  router.get('/:id/goals', async (req, res) => {
+    try {
+      const agent = activeAgents.get(req.params.id);
+
+      if (!agent) {
+        return res.status(404).json({
+          success: false,
+          error: 'Agent not found',
+        });
+      }
+
+      // Get goals from goalManager where assignedTo or agentId matches
+      const goals = goalManager.queryGoals({
+        assignedTo: agent.id,
+      });
+
+      res.json({
+        success: true,
+        data: goals,
+      });
+    } catch (error: unknown) {
+      res.status(500).json({ success: false, error: error instanceof Error ? error.message : String(error) });
+    }
+  });
+
+  /**
+   * POST /api/agents/:id/goals
+   * Assign an existing goal to an agent
+   */
+  router.post('/:id/goals', async (req, res) => {
+    try {
+      const agent = activeAgents.get(req.params.id);
+
+      if (!agent) {
+        return res.status(404).json({
+          success: false,
+          error: 'Agent not found',
+        });
+      }
+
+      const { goalId } = req.body;
+
+      if (!goalId) {
+        return res.status(400).json({
+          success: false,
+          error: 'goalId is required',
+        });
+      }
+
+      const goal = goalManager.getGoal(goalId);
+
+      if (!goal) {
+        return res.status(404).json({
+          success: false,
+          error: 'Goal not found',
+        });
+      }
+
+      // Update goal to assign to this agent
+      await goalManager.updateGoal({
+        goalId,
+        assignedTo: agent.id,
+      });
+
+      // Add to agent's active goals
+      if (!agent.metadata.activeGoalIds) {
+        agent.metadata.activeGoalIds = [];
+      }
+      if (!agent.metadata.activeGoalIds.includes(goalId)) {
+        agent.metadata.activeGoalIds.push(goalId);
+      }
+
+      // Update database
+      agentRepo.save({
+        id: agent.id,
+        name: agent.name,
+        type: agent.type,
+        status: agent.status,
+        config: { ...agent.config } as Record<string, unknown>,
+        metadata: agent.metadata || {},
+        rootGoal: agent.metadata.rootGoal,
+        sessionId: (agent as GoalOrientedAgent).getConfiguration().sessionId,
+        createdAt: new Date(agent.metadata.createdAt),
+        updatedAt: new Date(),
+      });
+
+      res.json({
+        success: true,
+        data: {
+          message: 'Goal assigned to agent',
+          goal: goalManager.getGoal(goalId),
+        },
+      });
+    } catch (error: unknown) {
+      res.status(500).json({ success: false, error: error instanceof Error ? error.message : String(error) });
+    }
+  });
+
+  /**
+   * DELETE /api/agents/:id/goals/:goalId
+   * Unassign a goal from an agent
+   */
+  router.delete('/:id/goals/:goalId', async (req, res) => {
+    try {
+      const agent = activeAgents.get(req.params.id);
+
+      if (!agent) {
+        return res.status(404).json({
+          success: false,
+          error: 'Agent not found',
+        });
+      }
+
+      const { goalId } = req.params;
+
+      // Remove from agent's active goals
+      if (agent.metadata.activeGoalIds) {
+        agent.metadata.activeGoalIds = agent.metadata.activeGoalIds.filter(
+          (id: string) => id !== goalId
+        );
+      }
+
+      // Update goal to unassign
+      await goalManager.updateGoal({
+        goalId,
+        assignedTo: undefined,
+      });
+
+      // Update database
+      agentRepo.save({
+        id: agent.id,
+        name: agent.name,
+        type: agent.type,
+        status: agent.status,
+        config: { ...agent.config } as Record<string, unknown>,
+        metadata: agent.metadata || {},
+        rootGoal: agent.metadata.rootGoal,
+        sessionId: (agent as GoalOrientedAgent).getConfiguration().sessionId,
+        createdAt: new Date(agent.metadata.createdAt),
+        updatedAt: new Date(),
+      });
+
+      res.json({
+        success: true,
+        data: { message: 'Goal unassigned from agent' },
+      });
+    } catch (error: unknown) {
+      res.status(500).json({ success: false, error: error instanceof Error ? error.message : String(error) });
+    }
+  });
+
+  /**
+   * POST /api/agents/:id/goals/:goalId/start
+   * Start working on a specific goal
+   */
+  router.post('/:id/goals/:goalId/start', async (req, res) => {
+    try {
+      const agent = activeAgents.get(req.params.id);
+
+      if (!agent) {
+        return res.status(404).json({
+          success: false,
+          error: 'Agent not found',
+        });
+      }
+
+      if (agent.status === 'running') {
+        return res.status(400).json({
+          success: false,
+          error: 'Agent is already running',
+        });
+      }
+
+      const { goalId } = req.params;
+      const goal = goalManager.getGoal(goalId);
+
+      if (!goal) {
+        return res.status(404).json({
+          success: false,
+          error: 'Goal not found',
+        });
+      }
+
+      // Set as current root goal
+      agent.metadata.rootGoal = goal.title;
+      (agent as any).rootGoalId = goalId;
+
+      // Start the agent
+      await agent.start();
+
+      res.json({
+        success: true,
+        data: {
+          id: agent.id,
+          status: agent.status,
+          goalId,
+          message: 'Agent started with goal',
+        },
       });
     } catch (error: unknown) {
       res.status(500).json({ success: false, error: error instanceof Error ? error.message : String(error) });

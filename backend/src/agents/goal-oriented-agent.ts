@@ -95,12 +95,10 @@ export class GoalOrientedAgent implements Agent {
       throw new Error('Agent is already running');
     }
 
-    if (!this.metadata.rootGoal) {
-      throw new Error('Cannot start agent without a root goal. Please set a goal first.');
-    }
-
     this.status = 'running';
-    this.agentLogger.info('Agent starting', { goal: this.metadata.rootGoal });
+    this.agentLogger.info('Agent starting', {
+      goal: this.metadata.rootGoal || 'No goal assigned - waiting for instructions'
+    });
 
     await this.eventBus.publish('agent.started', {
       id: uuidv4(),
@@ -109,25 +107,56 @@ export class GoalOrientedAgent implements Agent {
       timestamp: new Date().toISOString(),
       data: {
         name: this.name,
-        goal: this.metadata.rootGoal,
+        goal: this.metadata.rootGoal || null,
+        hasGoal: !!this.metadata.rootGoal,
       },
     });
 
-    // Create root goal
-    const rootGoal = await this.goalManager.createGoal({
-      title: this.metadata.rootGoal,
-      description: `High-level goal assigned to ${this.name}`,
-      priority: 'high',
-      createdBy: this.id,
-      assignedTo: this.id,
-      metadata: { sessionId: this.sessionId },
+    // Only create and work on goal if rootGoal is provided
+    if (this.metadata.rootGoal) {
+      // Create root goal
+      const rootGoal = await this.goalManager.createGoal({
+        title: this.metadata.rootGoal,
+        description: `High-level goal assigned to ${this.name}`,
+        priority: 'high',
+        createdBy: this.id,
+        assignedTo: this.id,
+        metadata: { sessionId: this.sessionId },
+      });
+
+      this.rootGoalId = rootGoal.id;
+      this.agentLogger.info('Root goal created', { goalId: rootGoal.id });
+
+      // Start working on the goal
+      await this.workOnGoal(rootGoal.id);
+    } else {
+      // Agent started without a goal - enter idle state
+      this.agentLogger.info('Agent started without a goal - entering idle state');
+      await this.enterIdleState();
+    }
+  }
+
+  /**
+   * Enter idle state - agent is running but waiting for goals to be assigned
+   */
+  private async enterIdleState(): Promise<void> {
+    this.agentLogger.info('Agent in idle state - waiting for goal assignment');
+
+    // Emit progress event
+    await this.eventBus.publish('agent.progress', {
+      id: uuidv4(),
+      type: 'agent.progress',
+      source: this.id,
+      timestamp: new Date().toISOString(),
+      data: {
+        agentId: this.id,
+        message: 'Agent ready and waiting for goals',
+        status: 'idle',
+      },
     });
 
-    this.rootGoalId = rootGoal.id;
-    this.agentLogger.info('Root goal created', { goalId: rootGoal.id });
-
-    // Start working on the goal
-    await this.workOnGoal(rootGoal.id);
+    // Agent stays running but doesn't do anything until a goal is assigned
+    // Goals can be assigned via the /api/agents/:id/goals/:goalId/start endpoint
   }
 
   async stop(): Promise<void> {

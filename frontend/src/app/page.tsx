@@ -6,22 +6,23 @@
 
 import { useState } from 'react';
 import { AgentManager } from '@/components/AgentManager';
-import { GoalsView } from '@/components/GoalsView';
-import { ActivityTimeline } from '@/components/ActivityTimeline';
+import { GoalsKanban } from '@/components/GoalsKanban';
+import { MultiAgentActivity } from '@/components/MultiAgentActivity';
+import { BrowserScreenshots } from '@/components/BrowserScreenshots';
 import { useWebSocket } from '@/hooks/useWebSocket';
-import { Users, Target, Activity, Sparkles } from 'lucide-react';
+import { Users, Target, Activity, Monitor, Sparkles } from 'lucide-react';
 
-type Tab = 'agents' | 'goals' | 'activity';
+type Tab = 'agents' | 'goals' | 'activity' | 'browser';
 
 export default function Dashboard() {
   const [activeTab, setActiveTab] = useState<Tab>('agents');
-  const [selectedSessionId, setSelectedSessionId] = useState<string | null>(null);
   const { isConnected, events } = useWebSocket();
 
   const tabs: Array<{ id: Tab; label: string; icon: React.ReactNode }> = [
     { id: 'agents', label: 'Agents', icon: <Users size={18} /> },
-    { id: 'goals', label: 'Goals & Hierarchy', icon: <Target size={18} /> },
+    { id: 'goals', label: 'Goals Board', icon: <Target size={18} /> },
     { id: 'activity', label: 'Activity', icon: <Activity size={18} /> },
+    { id: 'browser', label: 'Browser', icon: <Monitor size={18} /> },
   ];
 
   return (
@@ -89,32 +90,13 @@ export default function Dashboard() {
         <div className="animate-in fade-in slide-in-from-bottom-4 duration-500">
           {activeTab === 'agents' && (
             <AgentManager
-              onSessionSelect={(sessionId) => {
-                setSelectedSessionId(sessionId);
-                setActiveTab('activity');
-              }}
+              onSessionSelect={() => setActiveTab('activity')}
               realtimeEvents={events}
             />
           )}
-          {activeTab === 'goals' && <GoalsView realtimeEvents={events} />}
-          {activeTab === 'activity' && (
-            <>
-              {selectedSessionId ? (
-                <ActivityTimeline
-                  sessionId={selectedSessionId}
-                  realtimeEvents={events}
-                />
-              ) : (
-                <div className="card text-center py-16">
-                  <Activity className="w-20 h-20 mx-auto text-gray-300 mb-4" />
-                  <p className="text-gray-500 text-lg mb-2">No session selected</p>
-                  <p className="text-gray-400 text-sm">
-                    Select an agent from the Agents tab to view its activity
-                  </p>
-                </div>
-              )}
-            </>
-          )}
+          {activeTab === 'goals' && <GoalsKanban realtimeEvents={events} />}
+          {activeTab === 'activity' && <MultiAgentActivity realtimeEvents={events} />}
+          {activeTab === 'browser' && <BrowserScreenshots realtimeEvents={events} />}
         </div>
       </main>
 

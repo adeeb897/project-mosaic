@@ -15,7 +15,9 @@ import { createAgentRoutes } from './routes/agent.routes';
 import { createGoalRoutes } from './routes/goal.routes';
 import { createSessionRoutes } from './routes/session.routes';
 import { createMemoryRoutes } from './routes/memory.routes';
+import { createScreenshotRoutes } from './routes/screenshot.routes';
 import { logger } from '../core/logger';
+import * as path from 'path';
 
 export interface ServerConfig {
   port?: number;
@@ -110,6 +112,10 @@ export class APIServer {
     this.app.use('/api/goals', createGoalRoutes(this.goalManager));
     this.app.use('/api/sessions', createSessionRoutes(this.sessionManager));
     this.app.use('/api', createMemoryRoutes(this.memoryManager));
+
+    // Screenshots route
+    const screenshotsDir = path.resolve(process.cwd(), 'storage', 'screenshots');
+    this.app.use('/api/screenshots', createScreenshotRoutes(screenshotsDir));
 
     // 404 handler
     this.app.use((req, res) => {

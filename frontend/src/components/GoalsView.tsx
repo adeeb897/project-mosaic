@@ -4,7 +4,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { Target, ChevronRight, ChevronDown, CheckCircle2, Clock, AlertCircle, Circle, Trash2 } from 'lucide-react';
+import { Target, ChevronRight, ChevronDown, CheckCircle2, Clock, AlertCircle, Circle, Trash2, Plus } from 'lucide-react';
 import axios from 'axios';
 import { RealtimeEvent } from '@/hooks/useWebSocket';
 import { getApiUrl } from '@/config/api';
@@ -36,6 +36,12 @@ export function GoalsView({ realtimeEvents }: GoalsViewProps) {
   const [expandedNodes, setExpandedNodes] = useState<Set<string>>(new Set());
   const [stats, setStats] = useState<any>(null);
   const [loading, setLoading] = useState(true);
+  const [showCreateForm, setShowCreateForm] = useState(false);
+  const [formData, setFormData] = useState({
+    title: '',
+    description: '',
+    priority: 'medium' as 'critical' | 'high' | 'medium' | 'low',
+  });
 
   useEffect(() => {
     fetchGoals();
@@ -84,6 +90,25 @@ export function GoalsView({ realtimeEvents }: GoalsViewProps) {
       newExpanded.add(goalId);
     }
     setExpandedNodes(newExpanded);
+  };
+
+  const createGoal = async () => {
+    if (!formData.title || !formData.description) {
+      alert('Please fill in all required fields');
+      return;
+    }
+
+    try {
+      await axios.post(getApiUrl('/api/goals'), {
+        ...formData,
+        createdBy: 'user',  // You could get this from auth context
+      });
+      setShowCreateForm(false);
+      setFormData({ title: '', description: '', priority: 'medium' });
+      await fetchGoals();
+    } catch (error: any) {
+      alert(`Failed to create goal: ${error.response?.data?.error || error.message}`);
+    }
   };
 
   const deleteGoal = async (goalId: string, goalTitle: string) => {
@@ -222,16 +247,25 @@ export function GoalsView({ realtimeEvents }: GoalsViewProps) {
     <div className="space-y-6">
       {/* Header with Stats */}
       <div className="bg-gradient-to-br from-purple-50 via-blue-50 to-green-50 rounded-2xl p-6">
-        <div className="flex items-center gap-3 mb-4">
-          <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-purple-400 to-blue-400 flex items-center justify-center">
-            <Target className="w-6 h-6 text-white" />
+        <div className="flex items-center justify-between mb-4">
+          <div className="flex items-center gap-3">
+            <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-purple-400 to-blue-400 flex items-center justify-center">
+              <Target className="w-6 h-6 text-white" />
+            </div>
+            <div>
+              <h2 className="text-2xl font-bold text-gray-900">Goals & Hierarchy</h2>
+              <p className="text-gray-600 mt-1">
+                Track agent goals and their decomposition
+              </p>
+            </div>
           </div>
-          <div>
-            <h2 className="text-2xl font-bold text-gray-900">Goals & Hierarchy</h2>
-            <p className="text-gray-600 mt-1">
-              Track agent goals and their decomposition
-            </p>
-          </div>
+          <button
+            onClick={() => setShowCreateForm(true)}
+            className="btn-primary flex items-center gap-2"
+          >
+            <Plus size={20} />
+            Create Goal
+          </button>
         </div>
 
         {/* Stats */}
@@ -260,6 +294,72 @@ export function GoalsView({ realtimeEvents }: GoalsViewProps) {
           </div>
         )}
       </div>
+
+      {/* Create Goal Form */}
+      {showCreateForm && (
+        <div className="card animate-in fade-in slide-in-from-top-4 duration-300">
+          <h3 className="text-xl font-semibold text-gray-900 mb-4">Create New Goal</h3>
+          <div className="space-y-4">
+            <div>
+              <label className="block text-sm font-semibold text-gray-700 mb-2">
+                Goal Title *
+              </label>
+              <input
+                type="text"
+                value={formData.title}
+                onChange={(e) => setFormData({ ...formData, title: e.target.value })}
+                placeholder="e.g., Research renewable energy solutions"
+                className="input"
+              />
+            </div>
+            <div>
+              <label className="block text-sm font-semibold text-gray-700 mb-2">
+                Description *
+              </label>
+              <textarea
+                value={formData.description}
+                onChange={(e) => setFormData({ ...formData, description: e.target.value })}
+                placeholder="Detailed description of what needs to be accomplished..."
+                rows={4}
+                className="input resize-none"
+              />
+            </div>
+            <div>
+              <label className="block text-sm font-semibold text-gray-700 mb-2">
+                Priority
+              </label>
+              <select
+                value={formData.priority}
+                onChange={(e) => setFormData({ ...formData, priority: e.target.value as any })}
+                className="input"
+              >
+                <option value="low">Low</option>
+                <option value="medium">Medium</option>
+                <option value="high">High</option>
+                <option value="critical">Critical</option>
+              </select>
+            </div>
+            <div className="flex gap-3 pt-2">
+              <button
+                onClick={createGoal}
+                disabled={!formData.title || !formData.description}
+                className="btn-primary"
+              >
+                Create Goal
+              </button>
+              <button
+                onClick={() => {
+                  setShowCreateForm(false);
+                  setFormData({ title: '', description: '', priority: 'medium' });
+                }}
+                className="btn-secondary"
+              >
+                Cancel
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Goal Hierarchies */}
       {loading ? (

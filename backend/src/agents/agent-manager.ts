@@ -9,12 +9,7 @@
 import { Agent, LLMProviderPlugin, MCPServerPlugin } from '@mosaic/shared';
 import { EventBus } from '../core/event-bus';
 import { AutonomousAgent } from './autonomous-agent';
-import { GoalOrientedAgent } from './goal-oriented-agent';
-import { BaseLLMProvider } from '../llm/base-provider';
-import { FilesystemMCPServer } from '../mcp/filesystem-server';
 import { logger } from '../core/logger';
-import { getDatabase } from '../persistence/database';
-import { AgentRepository } from '../persistence/repositories/agent.repository';
 
 export interface CreateAgentRequest {
   name: string;
@@ -24,7 +19,6 @@ export interface CreateAgentRequest {
 
 export class AgentManager {
   private agents: Map<string, Agent> = new Map();
-  private agentRepo: AgentRepository;
   private llmProvider: LLMProviderPlugin;
   private mcpServers: MCPServerPlugin[];
   private eventBus: EventBus;
@@ -37,9 +31,6 @@ export class AgentManager {
     this.llmProvider = llmProvider;
     this.mcpServers = mcpServers;
     this.eventBus = eventBus;
-    
-    const db = getDatabase();
-    this.agentRepo = new AgentRepository(db.getDb());
   }
 
   /**
@@ -148,76 +139,4 @@ export class AgentManager {
       recentActions: state.memory?.executionLog?.slice(-5) || [],
     };
   }
-
-  /**
-   * Save agent state to database
-   */
-  async saveAgent(agent: Agent): Promise<void> {
-    const agentRecord = {
-      id: agent.id,
-      name: agent.name,
-      type: agent.type,
-      status: agent.status as 'idle' | 'running' | 'paused' | 'stopped' | 'error',
-      config: { ...agent.config } as Record<string, unknown>,
-      metadata: agent.getState().memory || {},
-      createdAt: new Date(),
-      updatedAt: new Date(),
-    };
-
-    this.agentRepo.save(agentRecord);
-    logger.info('Agent saved to database', { id: agent.id, name: agent.name });
-  }
-
-  /**
-   * Load agent from database
-   */
-  async loadAgent(id: string): Promise<Agent | null> {
-    const record = this.agentRepo.findById(id);
-    if (!record) {
-      logger.warn('Agent not found in database', { id });
-      return null;
-    }
-
-    // For now, we can only restore the basic agent properties
-    // Full restoration would require recreating the agent with all its dependencies
-    logger.info('Agent loaded from database', { id: record.id, name: record.name });
-    
-    // Return null for now - full restoration requires more implementation
-    // This would need to be extended based on agent type
-    return null;
-  }
-
-  /**
-   * List all saved agents
-   */
-  async listSavedAgents(): Promise<Array<{
-    id: string;
-    name: string;
-    type: string;
-    status: string;
-    createdAt: Date;
-    updatedAt: Date;
-  }>> {
-    const records = this.agentRepo.findAll();
-    return records.map(record => ({
-      id: record.id,
-      name: record.name,
-      type: record.type,
-      status: record.status,
-      createdAt: record.createdAt,
-      updatedAt: record.updatedAt,
-    }));
-  }
-
-  /**
-   * Delete saved agent from database
-   */
-  async deleteSavedAgent(id: string): Promise<boolean> {
-    const deleted = this.agentRepo.delete(id);
-    if (deleted) {
-      logger.info('Agent deleted from database', { id });
-    }
-    return deleted;
-  }
 }
-

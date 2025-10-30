@@ -4,7 +4,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { formatDistanceToNow } from 'date-fns';
+import { formatDistanceToNow, format, startOfDay, endOfDay, isSameDay, addDays, subDays } from 'date-fns';
 import axios from 'axios';
 import { RealtimeEvent } from '@/hooks/useWebSocket';
 import { getApiUrl } from '@/config/api';
@@ -18,7 +18,11 @@ import {
   CheckCircle,
   Clock,
   Filter,
-  RefreshCw
+  RefreshCw,
+  ChevronDown,
+  ChevronRight,
+  ChevronLeft,
+  Calendar
 } from 'lucide-react';
 
 interface ActionRecord {
@@ -32,6 +36,8 @@ interface ActionRecord {
     tool?: string;
     reasoning?: string;
     metadata?: any;
+    parameters?: any;
+    result?: any;
   };
 }
 
@@ -49,8 +55,13 @@ export function MultiAgentActivity({ realtimeEvents }: MultiAgentActivityProps) 
   const [actions, setActions] = useState<ActionRecord[]>([]);
   const [agents, setAgents] = useState<Map<string, AgentInfo>>(new Map());
   const [filter, setFilter] = useState<'all' | 'messages' | 'tools' | 'goals'>('all');
+  const [selectedAgentId, setSelectedAgentId] = useState<string | null>(null);
+  const [selectedGoalId, setSelectedGoalId] = useState<string | null>(null);
+  const [selectedDate, setSelectedDate] = useState<Date>(new Date());
+  const [expandedToolUses, setExpandedToolUses] = useState<Set<string>>(new Set());
   const [loading, setLoading] = useState(true);
   const [autoRefresh, setAutoRefresh] = useState(true);
+  const [showDatePicker, setShowDatePicker] = useState(false);
 
   useEffect(() => {
     fetchAgents();
@@ -98,15 +109,23 @@ export function MultiAgentActivity({ realtimeEvents }: MultiAgentActivityProps) 
             { params: { limit: 50 } }
           );
 
-          const sessionActions = timelineResponse.data.data.map((entry: any) => ({
-            id: entry.id,
-            timestamp: new Date(entry.timestamp),
-            agentId: entry.agentId || agent.id,
-            type: entry.type,
-            status: entry.status,
-            action: entry.summary || entry.description || entry.title,
-            details: entry.technicalDetails || entry.details,
-          }));
+          const sessionActions = timelineResponse.data.data.map((entry: any) => {
+            const details = entry.technicalDetails || entry.details || {};
+            return {
+              id: entry.id,
+              timestamp: new Date(entry.timestamp),
+              agentId: entry.agentId || agent.id,
+              type: entry.type,
+              status: entry.status,
+              action: entry.summary || entry.description || entry.title,
+              details: {
+                ...details,
+                tool: details.tool || details.toolName,
+                parameters: details.parameters || details.params || details.input,
+                result: details.result || details.output || details.response,
+              },
+            };
+          });
 
           allActions.push(...sessionActions);
         } catch (err) {
@@ -152,13 +171,82 @@ export function MultiAgentActivity({ realtimeEvents }: MultiAgentActivityProps) 
     }
   };
 
+  const toggleToolExpansion = (actionId: string) => {
+    const newExpanded = new Set(expandedToolUses);
+    if (newExpanded.has(actionId)) {
+      newExpanded.delete(actionId);
+    } else {
+      newExpanded.add(actionId);
+    }
+    setExpandedToolUses(newExpanded);
+  };
+
+  const getAgentColor = (agentId: string): string => {
+    // Generate consistent color for each agent
+    const colors = [
+      'from-purple-400 to-blue-400',
+      'from-blue-400 to-green-400',
+      'from-green-400 to-yellow-400',
+      'from-yellow-400 to-orange-400',
+      'from-orange-400 to-red-400',
+      'from-red-400 to-pink-400',
+      'from-pink-400 to-purple-400',
+    ];
+    const hash = agentId.split('').reduce((acc, char) => acc + char.charCodeAt(0), 0);
+    return colors[hash % colors.length];
+  };
+
+  const getAgentBgColor = (agentId: string): string => {
+    const bgColors = [
+      'bg-purple-50 border-purple-200',
+      'bg-blue-50 border-blue-200',
+      'bg-green-50 border-green-200',
+      'bg-yellow-50 border-yellow-200',
+      'bg-orange-50 border-orange-200',
+      'bg-red-50 border-red-200',
+      'bg-pink-50 border-pink-200',
+    ];
+    const hash = agentId.split('').reduce((acc, char) => acc + char.charCodeAt(0), 0);
+    return bgColors[hash % bgColors.length];
+  };
+
   const filteredActions = actions.filter((action) => {
-    if (filter === 'all') return true;
-    if (filter === 'messages') return action.type === 'agent_message';
-    if (filter === 'tools') return action.type === 'tool_invoked';
-    if (filter === 'goals') return action.type.includes('goal');
+    // Filter by date
+    if (!isSameDay(action.timestamp, selectedDate)) return false;
+
+    // Filter by type
+    if (filter !== 'all') {
+      if (filter === 'messages' && action.type !== 'agent_message') return false;
+      if (filter === 'tools' && action.type !== 'tool_invoked') return false;
+      if (filter === 'goals' && !action.type.includes('goal')) return false;
+    }
+
+    // Filter by agent
+    if (selectedAgentId && action.agentId !== selectedAgentId) return false;
+
+    // Filter by goal
+    if (selectedGoalId && action.details?.metadata?.goalId !== selectedGoalId) return false;
+
     return true;
   });
+
+  const goToPreviousDay = () => {
+    setSelectedDate(subDays(selectedDate, 1));
+  };
+
+  const goToNextDay = () => {
+    const nextDay = addDays(selectedDate, 1);
+    // Don't allow going into the future
+    if (nextDay <= new Date()) {
+      setSelectedDate(nextDay);
+    }
+  };
+
+  const goToToday = () => {
+    setSelectedDate(new Date());
+  };
+
+  const isToday = isSameDay(selectedDate, new Date());
 
   return (
     <div className="space-y-4">
@@ -190,111 +278,245 @@ export function MultiAgentActivity({ realtimeEvents }: MultiAgentActivityProps) 
           </button>
         </div>
 
-        {/* Agent Status Bar */}
-        <div className="bg-white/80 rounded-xl p-4">
-          <div className="flex items-center gap-2 mb-2">
-            <Bot size={16} className="text-gray-600" />
-            <span className="text-sm font-semibold text-gray-700">Active Agents ({agents.size})</span>
-          </div>
-          <div className="flex flex-wrap gap-2">
-            {Array.from(agents.values()).map((agent) => (
-              <div
-                key={agent.id}
-                className="flex items-center gap-2 px-3 py-1.5 bg-white rounded-lg border border-gray-200"
+        {/* Date Navigation */}
+        <div className="bg-white/80 rounded-xl p-4 mt-4">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-2">
+              <Calendar size={16} className="text-gray-600" />
+              <span className="text-sm font-semibold text-gray-700">Date:</span>
+            </div>
+            <div className="flex items-center gap-2">
+              <button
+                onClick={goToPreviousDay}
+                className="p-2 hover:bg-gray-100 rounded-lg transition-colors"
+                title="Previous day"
               >
-                <div
-                  className={`w-2 h-2 rounded-full ${
-                    agent.status === 'running' ? 'bg-green-500 animate-pulse' : 'bg-gray-300'
-                  }`}
-                />
-                <span className="text-sm font-medium text-gray-700">{agent.name}</span>
-              </div>
-            ))}
+                <ChevronLeft size={20} className="text-gray-700" />
+              </button>
+
+              <button
+                onClick={() => setShowDatePicker(!showDatePicker)}
+                className="px-4 py-2 bg-white border border-gray-200 rounded-lg hover:bg-gray-50 transition-colors font-medium text-gray-900"
+              >
+                {format(selectedDate, 'MMMM d, yyyy')}
+              </button>
+
+              <button
+                onClick={goToNextDay}
+                disabled={isToday}
+                className={`p-2 rounded-lg transition-colors ${
+                  isToday
+                    ? 'text-gray-300 cursor-not-allowed'
+                    : 'hover:bg-gray-100 text-gray-700'
+                }`}
+                title="Next day"
+              >
+                <ChevronRight size={20} />
+              </button>
+
+              {!isToday && (
+                <button
+                  onClick={goToToday}
+                  className="ml-2 px-3 py-2 bg-purple-100 text-purple-700 rounded-lg hover:bg-purple-200 transition-colors text-sm font-medium"
+                >
+                  Today
+                </button>
+              )}
+            </div>
           </div>
+
+          {/* Simple Date Picker */}
+          {showDatePicker && (
+            <div className="mt-3 pt-3 border-t border-gray-200">
+              <input
+                type="date"
+                value={format(selectedDate, 'yyyy-MM-dd')}
+                max={format(new Date(), 'yyyy-MM-dd')}
+                onChange={(e) => {
+                  const newDate = new Date(e.target.value);
+                  setSelectedDate(newDate);
+                  setShowDatePicker(false);
+                }}
+                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-400"
+              />
+            </div>
+          )}
         </div>
 
         {/* Filters */}
-        <div className="flex items-center gap-2 mt-4">
-          <Filter size={16} className="text-gray-600" />
-          <span className="text-sm font-semibold text-gray-700 mr-2">Filter:</span>
-          {(['all', 'messages', 'tools', 'goals'] as const).map((filterType) => (
-            <button
-              key={filterType}
-              onClick={() => setFilter(filterType)}
-              className={`px-3 py-1.5 rounded-lg text-sm font-medium transition-colors ${
-                filter === filterType
-                  ? 'bg-white text-gray-900 shadow-sm'
-                  : 'text-gray-600 hover:bg-white/50'
-              }`}
-            >
-              {filterType.charAt(0).toUpperCase() + filterType.slice(1)}
-            </button>
-          ))}
+        <div className="space-y-3 mt-4">
+          {/* Type Filter */}
+          <div className="flex items-center gap-2">
+            <Filter size={16} className="text-gray-600" />
+            <span className="text-sm font-semibold text-gray-700 mr-2">Type:</span>
+            {(['all', 'messages', 'tools', 'goals'] as const).map((filterType) => (
+              <button
+                key={filterType}
+                onClick={() => setFilter(filterType)}
+                className={`px-3 py-1.5 rounded-lg text-sm font-medium transition-colors ${
+                  filter === filterType
+                    ? 'bg-white text-gray-900 shadow-sm'
+                    : 'text-gray-600 hover:bg-white/50'
+                }`}
+              >
+                {filterType.charAt(0).toUpperCase() + filterType.slice(1)}
+              </button>
+            ))}
+          </div>
+
+          {/* Agent and Goal Filters */}
+          <div className="flex items-center gap-4">
+            {/* Agent Filter */}
+            <div className="flex items-center gap-2">
+              <Bot size={16} className="text-gray-600" />
+              <span className="text-sm font-semibold text-gray-700">Agent:</span>
+              <select
+                value={selectedAgentId || ''}
+                onChange={(e) => setSelectedAgentId(e.target.value || null)}
+                className="px-3 py-1.5 rounded-lg text-sm font-medium bg-white border border-gray-200 text-gray-700 focus:outline-none focus:ring-2 focus:ring-purple-400"
+              >
+                <option value="">All Agents</option>
+                {Array.from(agents.values()).map((agent) => (
+                  <option key={agent.id} value={agent.id}>
+                    {agent.name}
+                  </option>
+                ))}
+              </select>
+            </div>
+
+            {/* Goal Filter */}
+            <div className="flex items-center gap-2">
+              <Target size={16} className="text-gray-600" />
+              <span className="text-sm font-semibold text-gray-700">Goal:</span>
+              <input
+                type="text"
+                placeholder="Goal ID (optional)"
+                value={selectedGoalId || ''}
+                onChange={(e) => setSelectedGoalId(e.target.value || null)}
+                className="px-3 py-1.5 rounded-lg text-sm font-medium bg-white border border-gray-200 text-gray-700 focus:outline-none focus:ring-2 focus:ring-purple-400 w-48"
+              />
+            </div>
+
+            {/* Clear Filters */}
+            {(selectedAgentId || selectedGoalId) && (
+              <button
+                onClick={() => {
+                  setSelectedAgentId(null);
+                  setSelectedGoalId(null);
+                }}
+                className="px-3 py-1.5 rounded-lg text-sm font-medium bg-red-50 text-red-600 hover:bg-red-100 transition-colors"
+              >
+                Clear Filters
+              </button>
+            )}
+          </div>
         </div>
       </div>
 
-      {/* Activity Feed */}
+      {/* Activity Feed - Chat Style */}
       {loading ? (
-        <div className="bg-white rounded-lg border border-gray-200 p-12 text-center">
+        <div className="bg-white rounded-xl border border-gray-200 p-12 text-center">
           <p className="text-gray-500">Loading activity...</p>
         </div>
       ) : filteredActions.length === 0 ? (
-        <div className="bg-white rounded-lg border-2 border-dashed border-gray-300 p-12 text-center">
+        <div className="bg-white rounded-xl border-2 border-dashed border-gray-300 p-12 text-center">
           <Activity size={48} className="mx-auto text-gray-300 mb-4" />
           <p className="text-gray-500">No activity yet. Start an agent to see actions!</p>
         </div>
       ) : (
-        <div className="space-y-2">
+        <div className="bg-gradient-to-b from-gray-50 to-white rounded-xl border border-gray-200 p-3 space-y-2 max-h-[700px] overflow-y-auto">
           {filteredActions.map((action) => {
             const agent = agents.get(action.agentId);
+            const isExpanded = expandedToolUses.has(action.id);
+            const isToolUse = action.type === 'tool_invoked';
+
             return (
               <div
                 key={action.id}
-                className="bg-white rounded-lg border border-gray-200 p-4 hover:shadow-md transition-shadow"
+                className={`flex gap-2 p-2 rounded-lg border transition-all hover:shadow-sm ${getAgentBgColor(action.agentId)}`}
               >
-                <div className="flex items-start gap-3">
-                  {/* Icon */}
-                  <div className="flex-shrink-0 mt-0.5">
-                    {getIcon(action.type)}
+                {/* Agent Avatar */}
+                <div className="flex-shrink-0">
+                  <div className={`w-8 h-8 rounded-lg bg-gradient-to-br ${getAgentColor(action.agentId)} flex items-center justify-center shadow-sm`}>
+                    <Bot size={16} className="text-white" />
+                  </div>
+                </div>
+
+                {/* Message Content */}
+                <div className="flex-1 min-w-0">
+                  {/* Header - Inline */}
+                  <div className="flex items-center gap-2 mb-0.5">
+                    <span className="text-xs font-bold text-gray-900">
+                      {agent?.name || 'Unknown'}
+                    </span>
+                    <span className="text-xs text-gray-400">
+                      {formatDistanceToNow(action.timestamp, { addSuffix: true })}
+                    </span>
+                    {getStatusIcon(action.status)}
                   </div>
 
-                  {/* Content */}
-                  <div className="flex-1 min-w-0">
-                    <div className="flex items-start justify-between gap-2">
-                      <div className="flex-1">
-                        {/* Agent badge */}
-                        <div className="flex items-center gap-2 mb-1">
-                          <span className="text-xs font-semibold text-purple-600 bg-purple-50 px-2 py-0.5 rounded">
-                            {agent?.name || 'Unknown Agent'}
+                  {/* Message Body - Compact */}
+                  <div className="space-y-1">
+                    <p className="text-sm text-gray-800 leading-snug">
+                      {action.action}
+                    </p>
+
+                    {/* Reasoning - More compact */}
+                    {action.details?.reasoning && (
+                      <p className="text-xs text-gray-500 italic pl-2 border-l-2 border-gray-300">
+                        {action.details.reasoning}
+                      </p>
+                    )}
+
+                    {/* Tool Use - Compact and expandable */}
+                    {isToolUse && action.details?.tool && (
+                      <div className="pt-1">
+                        <button
+                          onClick={() => toggleToolExpansion(action.id)}
+                          className="flex items-center gap-1.5 text-xs font-medium text-gray-600 hover:text-gray-900 bg-white/80 px-2 py-1 rounded border border-gray-200 hover:border-gray-300 transition-all"
+                        >
+                          <Wrench size={12} />
+                          <span className="font-mono">
+                            {action.details.tool}
                           </span>
-                          <span className="text-xs text-gray-500">
-                            {formatDistanceToNow(action.timestamp, { addSuffix: true })}
-                          </span>
-                          {getStatusIcon(action.status)}
-                        </div>
+                          {isExpanded ? <ChevronDown size={12} /> : <ChevronRight size={12} />}
+                        </button>
 
-                        {/* Action text */}
-                        <p className="text-sm text-gray-900 leading-relaxed">
-                          {action.action}
-                        </p>
+                        {isExpanded && (
+                          <div className="mt-2 bg-white/90 rounded border border-gray-200 p-2 space-y-2">
+                            {/* Parameters */}
+                            {action.details.parameters && (
+                              <div>
+                                <p className="text-xs font-semibold text-gray-600 mb-1">Input:</p>
+                                <pre className="text-xs bg-gray-50 p-1.5 rounded border border-gray-200 overflow-x-auto max-h-32">
+{JSON.stringify(action.details.parameters, null, 2)}
+                                </pre>
+                              </div>
+                            )}
 
-                        {/* Reasoning/Details */}
-                        {action.details?.reasoning && (
-                          <p className="text-xs text-gray-600 mt-1 italic">
-                            {action.details.reasoning}
-                          </p>
-                        )}
-
-                        {/* Tool details */}
-                        {action.details?.tool && (
-                          <div className="mt-2">
-                            <span className="text-xs font-mono bg-gray-100 px-2 py-1 rounded">
-                              {action.details.tool}
-                            </span>
+                            {/* Result */}
+                            {action.details.result && (
+                              <div>
+                                <p className="text-xs font-semibold text-gray-600 mb-1 flex items-center gap-1">
+                                  {action.status === 'completed' ? (
+                                    <>✓ Output:</>
+                                  ) : (
+                                    <>✗ Error:</>
+                                  )}
+                                </p>
+                                <pre className={`text-xs p-1.5 rounded border overflow-x-auto max-h-32 ${
+                                  action.status === 'completed'
+                                    ? 'bg-green-50 border-green-200 text-green-900'
+                                    : 'bg-red-50 border-red-200 text-red-900'
+                                }`}>
+{typeof action.details.result === 'string' ? action.details.result : JSON.stringify(action.details.result, null, 2)}
+                                </pre>
+                              </div>
+                            )}
                           </div>
                         )}
                       </div>
-                    </div>
+                    )}
                   </div>
                 </div>
               </div>
