@@ -58,6 +58,9 @@ temp/
 Thumbs.db
 .DS_Store
 
+# Claude
+.claude/*local*
+
 # Misc
 .cache/
 .parcel-cache/

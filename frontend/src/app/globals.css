@@ -1,0 +1,169 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  /* Pastel Color Palette */
+  --pastel-lavender: #E6E6FA;
+  --pastel-mint: #C1F0DC;
+  --pastel-peach: #FFE5D9;
+  --pastel-sky: #C7E9FB;
+  --pastel-rose: #FFD6E8;
+  --pastel-lemon: #FFF4C1;
+  --pastel-sage: #D4E7D4;
+
+  /* Darker variants for text/borders */
+  --lavender-dark: #9B9BE8;
+  --mint-dark: #6BCBA0;
+  --peach-dark: #FFB399;
+  --sky-dark: #7AC8F5;
+  --rose-dark: #FFB3D9;
+  --lemon-dark: #FFE680;
+  --sage-dark: #8FBC8F;
+
+  /* Base colors */
+  --background: #FAF9FF;
+  --surface: #FFFFFF;
+  --text-primary: #2D3748;
+  --text-secondary: #718096;
+  --border: #E2E8F0;
+
+  /* Semantic colors */
+  --success: #6BCBA0;
+  --warning: #FFE680;
+  --error: #FFB3B3;
+  --info: #7AC8F5;
+}
+
+body {
+  color: var(--text-primary);
+  background: linear-gradient(135deg, var(--pastel-lavender) 0%, var(--pastel-sky) 50%, var(--pastel-mint) 100%);
+  background-attachment: fixed;
+  min-height: 100vh;
+}
+
+@layer components {
+  .card {
+    @apply bg-white/95 backdrop-blur-sm rounded-2xl shadow-lg border border-white/40 p-6 transition-all duration-300;
+  }
+
+  .card:hover {
+    @apply shadow-xl transform -translate-y-0.5;
+  }
+
+  .btn-primary {
+    @apply px-5 py-2.5 rounded-xl font-medium text-white shadow-md transition-all duration-300;
+    background: linear-gradient(135deg, var(--lavender-dark) 0%, var(--sky-dark) 100%);
+  }
+
+  .btn-primary:hover {
+    @apply shadow-lg transform -translate-y-0.5;
+  }
+
+  .btn-primary:disabled {
+    @apply opacity-50 cursor-not-allowed transform-none;
+  }
+
+  .btn-secondary {
+    @apply px-5 py-2.5 rounded-xl font-medium bg-white/80 backdrop-blur-sm border border-white/60 shadow-md hover:shadow-lg transition-all duration-300;
+    color: var(--text-primary);
+  }
+
+  .btn-secondary:hover {
+    @apply transform -translate-y-0.5;
+    background: rgba(255, 255, 255, 0.95);
+  }
+
+  .input {
+    @apply w-full px-4 py-2.5 rounded-xl border-2 transition-all duration-300 bg-white/90 backdrop-blur-sm;
+    border-color: var(--border);
+  }
+
+  .input:focus {
+    @apply outline-none shadow-lg;
+    border-color: var(--lavender-dark);
+    background: white;
+  }
+
+  .badge {
+    @apply inline-flex items-center px-3 py-1 rounded-full text-xs font-semibold shadow-sm;
+  }
+
+  .badge-success {
+    background: var(--pastel-mint);
+    color: var(--mint-dark);
+  }
+
+  .badge-warning {
+    background: var(--pastel-lemon);
+    color: #D4A917;
+  }
+
+  .badge-error {
+    background: var(--pastel-rose);
+    color: #D94452;
+  }
+
+  .badge-info {
+    background: var(--pastel-sky);
+    color: var(--sky-dark);
+  }
+
+  .badge-neutral {
+    background: var(--pastel-lavender);
+    color: var(--lavender-dark);
+  }
+
+  /* Activity Timeline Styles */
+  .timeline-item {
+    @apply relative pl-8 pb-8 border-l-2 transition-all duration-300;
+    border-color: var(--border);
+  }
+
+  .timeline-item:hover {
+    border-color: var(--lavender-dark);
+  }
+
+  .timeline-item::before {
+    content: '';
+    @apply absolute left-0 w-4 h-4 rounded-full -translate-x-[9px] shadow-md;
+    background: white;
+    border: 3px solid var(--lavender-dark);
+  }
+
+  .timeline-item:last-child {
+    @apply pb-0;
+  }
+
+  /* Conversation bubbles */
+  .conversation-bubble {
+    @apply rounded-2xl p-4 shadow-md backdrop-blur-sm transition-all duration-300;
+  }
+
+  .conversation-bubble:hover {
+    @apply shadow-lg transform scale-[1.01];
+  }
+
+  .conversation-bubble-agent {
+    background: linear-gradient(135deg, var(--pastel-lavender) 0%, var(--pastel-sky) 100%);
+  }
+
+  .conversation-bubble-tool {
+    background: linear-gradient(135deg, var(--pastel-mint) 0%, var(--pastel-sage) 100%);
+  }
+
+  .conversation-bubble-error {
+    background: linear-gradient(135deg, var(--pastel-rose) 0%, var(--pastel-peach) 100%);
+  }
+
+  /* Glassmorphism effect */
+  .glass {
+    @apply bg-white/80 backdrop-blur-md border border-white/40;
+  }
+
+  /* Animated gradient text */
+  .gradient-text {
+    @apply bg-clip-text text-transparent;
+    background-image: linear-gradient(135deg, var(--lavender-dark) 0%, var(--sky-dark) 50%, var(--mint-dark) 100%);
+  }
+}

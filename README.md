@@ -101,49 +101,49 @@ For detailed architecture, see [ARCHITECTURE.md](./ARCHITECTURE.md).
 ### Prerequisites
 
 - Node.js 20+
-- Docker (for local sandboxes)
-- PostgreSQL
-- Redis
+- Redis (for real-time events)
+- OpenAI API key (or use local models with Ollama)
 
-### Local Development
+### 5-Minute Setup
 
 ```bash
-# Clone the repository
+# 1. Clone the repository
 git clone https://github.com/your-org/project-mosaic.git
 cd project-mosaic
 
-# Install dependencies
+# 2. Install dependencies
 npm install
 
-# Set up environment
+# 3. Set up environment
 cp .env.example .env
-# Edit .env with your API keys
+# Add your OPENAI_API_KEY to .env
 
-# Start services with Docker Compose
-docker-compose up -d
+# 4. Start Redis
+docker run -p 6379:6379 redis:latest
+# Or: redis-server (if installed locally)
 
-# Run database migrations
-npm run db:migrate
+# 5. Start the backend
+cd backend
+npm start
 
-# Start development server
+# 6. In a new terminal, start the frontend
+cd frontend
 npm run dev
 
-# Access admin dashboard
+# 7. Open the dashboard
 open http://localhost:3001
 ```
 
-### Using Docker Compose (Recommended)
+### Create Your First Agent
 
-```bash
-# Start everything (backend, frontend, database, redis, ollama)
-docker-compose up -d
+1. Click "Create Agent" in the dashboard
+2. Enter:
+   - **Name**: ResearchAgent
+   - **Goal**: "Research renewable energy solutions and create a report"
+3. Click "Create" → then click "Start"
+4. Watch the agent work in the Activity Timeline!
 
-# View logs
-docker-compose logs -f
-
-# Stop services
-docker-compose down
-```
+See [ADMIN-DASHBOARD-GUIDE.md](./ADMIN-DASHBOARD-GUIDE.md) for complete dashboard documentation.
 
 ---
 
@@ -245,9 +245,6 @@ E2B_API_KEY=e2b_...
 ### 🔬 **Research Teams**
 Deploy specialized agents (researcher, fact-checker, writer) that collaborate on reports.
 
-### 🏢 **Business Automation**
-Coordinate agents for customer support, data analysis, and content creation.
-
 ### 🎓 **Education & Experimentation**
 Learn about multi-agent systems in a safe, observable environment.
 
@@ -274,32 +271,39 @@ Experiment with agent communication patterns, emergent behaviors, and coordinati
 
 ## Documentation
 
+- 🚀 **[Quick Start](./QUICK_START.md)** - Get started in 5 minutes
 - 📖 **[Architecture](./ARCHITECTURE.md)** - System design and components
-- 🔌 **[Extensibility](./EXTENSIBILITY.md)** - Build custom plugins
-- 🚀 **[Deployment](./DEPLOYMENT.md)** - Deploy to cloud or local
-- 🤝 **[Contributing](./CONTRIBUTING.md)** - Contribute to the project
+- 📚 **[Full Documentation](./docs/)** - Complete guides and references
+  - [Extensibility Guide](./docs/extensibility.md) - Build custom plugins
+  - [Deployment Guide](./docs/deployment.md) - Deploy anywhere
+  - [Contributing Guide](./docs/contributing.md) - Join the project
 
 ---
 
 ## Roadmap
 
-### ✅ Phase 1: Foundation (Current)
+### ✅ Phase 1: Foundation (Complete)
 - [x] Architecture design
 - [x] Documentation
-- [ ] Core interfaces
-- [ ] Project structure
+- [x] Core interfaces
+- [x] Project structure
+- [x] Plugin system
+- [x] Event bus
 
-### 🚧 Phase 2: Core Services (In Progress)
-- [ ] LangGraph.js integration
-- [ ] A2A protocol implementation
-- [ ] MCP servers (filesystem, memory)
-- [ ] Sandbox providers (E2B + Docker)
+### ✅ Phase 2: Core Services (Complete)
+- [x] Autonomous agent system
+- [x] LLM provider abstraction
+- [x] OpenAI integration
+- [x] Filesystem MCP server
+- [x] Agent manager
+- [x] REST API routes
 
-### 📋 Phase 3: Admin Dashboard
-- [ ] Real-time event stream
-- [ ] Agent monitoring UI
-- [ ] File explorer
-- [ ] Agent controls
+### ✅ Phase 3: Admin Dashboard (Complete)
+- [x] Real-time event stream with WebSocket
+- [x] Agent creation and management UI
+- [x] Goal hierarchy visualization
+- [x] Activity timeline with live updates
+- [x] Goal creation and tracking
 
 ### 🎯 Phase 4: Enhanced Capabilities
 - [ ] Browser MCP server
