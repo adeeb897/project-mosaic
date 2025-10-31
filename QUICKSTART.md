@@ -108,7 +108,7 @@ In the Agents tab, click the blue "Create Agent" button.
 ### 2. Fill in the Form
 
 - **Agent Name**: `ResearchAgent`
-- **High-Level Goal**: `Research renewable energy solutions and create a comprehensive report`
+- **High-Level Task**: `Research renewable energy solutions and create a comprehensive report`
 
 ### 3. Create and Start
 
@@ -122,7 +122,7 @@ Switch to the **"Activity"** tab to see real-time updates:
 
 ```
 🎯 [10:30:15] Started working on: Research renewable energy...
-   Goal: Research renewable energy solutions
+   Task: Research renewable energy solutions
 
 🛠️ [10:30:18] Used filesystem.write_file: Creating research plan
    Status: completed
@@ -131,12 +131,12 @@ Switch to the **"Activity"** tab to see real-time updates:
    Status: completed
 
 ✅ [10:31:02] Completed: Gather background information
-   Goal: Research current technologies
+   Task: Research current technologies
 ```
 
-### 5. View the Goal Tree
+### 5. View the Task Tree
 
-Switch to the **"Goal Tree"** tab to see how the agent broke down your high-level goal:
+Switch to the **"Task Tree"** tab to see how the agent broke down your high-level task:
 
 ```
 ✅ Research renewable energy solutions [completed]
@@ -151,9 +151,9 @@ Switch to the **"Goal Tree"** tab to see how the agent broke down your high-leve
    └── ⏸️  Write comprehensive report [pending]
 ```
 
-## Example Goals to Try
+## Example Tasks to Try
 
-### Simple Goals (Good for Testing)
+### Simple Tasks (Good for Testing)
 ```
 Create a file called "hello.txt" with a greeting message
 ```
@@ -174,8 +174,8 @@ Research current AI safety approaches, identify gaps, and propose new research d
 ```
 
 The agent will automatically:
-- Decide if the goal should be decomposed
-- Break it into manageable sub-goals
+- Decide if the task should be decomposed
+- Break it into manageable sub-tasks
 - Execute each step
 - Self-correct if errors occur
 - Report progress in plain English
@@ -234,26 +234,26 @@ Edit `frontend/package.json`:
 ### Explore the Dashboard
 
 1. **Agents Tab**: Create, manage, and control agents
-2. **Goals Tab**: Create shared goals and view statistics
+2. **Tasks Tab**: Create shared tasks and view statistics
 3. **Activity Tab**: Monitor live agent actions
-4. **Goal Tree Tab**: Visualize goal hierarchies
+4. **Task Tree Tab**: Visualize task hierarchies
 
 ### Learn More
 
 - **Full Documentation**: [ADMIN-DASHBOARD-GUIDE.md](./ADMIN-DASHBOARD-GUIDE.md)
-- **Goal System**: [.claude/GOAL-HIERARCHY-IMPLEMENTATION.md](.claude/GOAL-HIERARCHY-IMPLEMENTATION.md)
+- **Task System**: [.claude/GOAL-HIERARCHY-IMPLEMENTATION.md](.claude/GOAL-HIERARCHY-IMPLEMENTATION.md)
 - **Architecture**: [ARCHITECTURE.md](./ARCHITECTURE.md)
 
 ### Advanced Features
 
-**Create Shared Goals:**
-1. Go to Goals tab
-2. Click "Create Goal"
+**Create Shared Tasks:**
+1. Go to Tasks tab
+2. Click "Create Task"
 3. Any agent can work on it!
 
 **Multiple Agents:**
 - Create multiple agents with different specializations
-- Assign them different goals
+- Assign them different tasks
 - Watch them work in parallel
 
 **Export Sessions:**
@@ -270,7 +270,6 @@ Download complete session history for analysis!
 cd backend
 npm start          # Start API server
 npm run dev        # Start with auto-reload
-npm run demo:simple # Run simple demo
 
 # Frontend
 cd frontend
@@ -293,9 +292,9 @@ docker start mosaic-redis             # Restart Redis
 
 You now have a fully functional autonomous agent platform! Try:
 
-1. ✅ Create agents with increasingly complex goals
+1. ✅ Create agents with increasingly complex tasks
 2. ✅ Monitor how they decompose and execute tasks
 3. ✅ View complete activity timelines
-4. ✅ Explore goal trees to understand agent reasoning
+4. ✅ Explore task trees to understand agent reasoning
 
 **Have fun building with autonomous agents! 🚀**

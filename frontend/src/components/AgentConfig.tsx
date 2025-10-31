@@ -6,7 +6,7 @@
 import { useEffect, useState } from 'react';
 import axios from 'axios';
 import { getApiUrl } from '@/config/api';
-import { X, Cpu, Wrench, Settings, Code, Edit2, Save } from 'lucide-react';
+import { X, Cpu, Settings, Code, Edit2, Save } from 'lucide-react';
 
 interface AgentConfig {
   id: string;
@@ -47,7 +47,6 @@ export function AgentConfig({ agentId, onClose }: AgentConfigProps) {
   const [editedConfig, setEditedConfig] = useState<{
     mcpServerNames: string[];
     maxDepth: number;
-    rootGoal?: string;
   } | null>(null);
   const [availableServers, setAvailableServers] = useState<MCPServer[]>([]);
   const [saving, setSaving] = useState(false);
@@ -82,7 +81,6 @@ export function AgentConfig({ agentId, onClose }: AgentConfigProps) {
     setEditedConfig({
       mcpServerNames: [...config.mcpServers],
       maxDepth: config.maxDepth,
-      rootGoal: config.metadata.rootGoal,
     });
     setIsEditing(true);
   };
@@ -189,10 +187,6 @@ export function AgentConfig({ agentId, onClose }: AgentConfigProps) {
                 <p className="font-mono text-sm text-gray-900">{config.sessionId}</p>
               </div>
               <div>
-                <p className="text-sm text-gray-600">Type</p>
-                <p className="font-semibold text-gray-900">{config.type}</p>
-              </div>
-              <div>
                 <p className="text-sm text-gray-600">Status</p>
                 <span className={`inline-flex px-2 py-1 rounded-full text-xs font-medium ${
                   config.status === 'running' ? 'bg-green-100 text-green-800' :
@@ -203,7 +197,7 @@ export function AgentConfig({ agentId, onClose }: AgentConfigProps) {
                 </span>
               </div>
               <div>
-                <p className="text-sm text-gray-600">Max Goal Depth</p>
+                <p className="text-sm text-gray-600">Max Task Depth</p>
                 {isEditing && editedConfig ? (
                   <input
                     type="number"
@@ -220,21 +214,6 @@ export function AgentConfig({ agentId, onClose }: AgentConfigProps) {
                   <p className="font-semibold text-gray-900">{config.maxDepth} levels</p>
                 )}
               </div>
-              {isEditing && editedConfig && (
-                <div className="col-span-2">
-                  <p className="text-sm text-gray-600 mb-2">Root Goal</p>
-                  <textarea
-                    value={editedConfig.rootGoal || ''}
-                    onChange={(e) => setEditedConfig({
-                      ...editedConfig,
-                      rootGoal: e.target.value
-                    })}
-                    placeholder="Agent's high-level goal (optional)"
-                    rows={3}
-                    className="w-full px-3 py-2 border border-gray-300 rounded text-sm resize-none"
-                  />
-                </div>
-              )}
             </div>
           </div>
 
@@ -306,33 +285,6 @@ export function AgentConfig({ agentId, onClose }: AgentConfigProps) {
                 ))}
               </div>
             )}
-          </div>
-
-          {/* Available Tools */}
-          <div className="bg-gradient-to-br from-yellow-50 to-orange-50 rounded-xl p-4">
-            <h3 className="font-semibold text-gray-900 mb-3 flex items-center gap-2">
-              <Wrench size={18} className="text-orange-600" />
-              Available Tools ({config.tools.length})
-            </h3>
-            <div className="space-y-3 max-h-64 overflow-y-auto">
-              {config.tools.map((tool, index) => (
-                <div key={index} className="bg-white rounded-lg p-3 border border-gray-200">
-                  <div className="flex items-start justify-between">
-                    <div className="flex-1">
-                      <p className="font-semibold text-gray-900">
-                        {tool.server}.{tool.name}
-                      </p>
-                      <p className="text-sm text-gray-600 mt-1">{tool.description}</p>
-                      {tool.parameters?.required && (
-                        <p className="text-xs text-gray-500 mt-2">
-                          Required: {tool.parameters.required.join(', ')}
-                        </p>
-                      )}
-                    </div>
-                  </div>
-                </div>
-              ))}
-            </div>
           </div>
 
           {/* Metadata */}

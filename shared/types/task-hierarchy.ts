@@ -39,12 +39,19 @@ export interface Task {
   lastUpdatedAt: Date;
 
   // Results
-  result?: any;
+  result?: TaskResult;
   errorMessage?: string;
 
   // Context
   tags: string[];
   metadata: Record<string, any>;
+}
+
+export interface TaskResult {
+  taskId: string;
+  result: any;
+  success: boolean;
+  errorMessage?: string;
 }
 
 /**

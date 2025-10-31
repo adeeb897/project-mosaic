@@ -1,33 +1,33 @@
-# Goal Hierarchy and Session Management Implementation
+# Task Hierarchy and Session Management Implementation
 
 ## Overview
 
 This document describes the implementation of two critical features for Project Mosaic:
-1. **Goal Hierarchy System** - Enables agents to break down extremely high-level goals into manageable sub-goals
+1. **Task Hierarchy System** - Enables agents to break down extremely high-level tasks into manageable sub-tasks
 2. **Session/History Management** - Records every action, decision, and visual state for complete transparency
 
 ## Key Features
 
-### 1. Goal Hierarchy System
+### 1. Task Hierarchy System
 
-Agents can now handle goals at any level of complexity, from "Create a file" to "Address climate change".
+Agents can now handle tasks at any level of complexity, from "Create a file" to "Address climate change".
 
 **Core Capabilities:**
-- Autonomous goal decomposition (breaking down complex goals into sub-goals)
-- Hierarchical goal tracking (tree structure with parent/child relationships)
-- Automatic parent goal completion when all children complete
+- Autonomous task decomposition (breaking down complex tasks into sub-tasks)
+- Hierarchical task tracking (tree structure with parent/child relationships)
+- Automatic parent task completion when all children complete
 - Priority and status management
-- Cross-agent goal visibility (agents can see and work on shared goals)
+- Cross-agent task visibility (agents can see and work on shared tasks)
 
 **Files Created:**
-- `shared/types/goal-hierarchy.ts` - Type definitions for goals, decomposition, queries
-- `backend/src/services/goal/goal-manager.service.ts` - Goal management service
+- `shared/types/task-hierarchy.ts` - Type definitions for tasks, decomposition, queries
+- `backend/src/services/task/task-manager.service.ts` - Task management service
 
 **Key Types:**
-- `Goal` - Represents a goal at any level with status, priority, hierarchy info
-- `GoalDecomposition` - Agent's plan for breaking down a goal
-- `GoalTree` - Hierarchical visualization structure
-- `GoalQuery` - Flexible goal querying
+- `Task` - Represents a task at any level with status, priority, hierarchy info
+- `TaskDecomposition` - Agent's plan for breaking down a task
+- `TaskTree` - Hierarchical visualization structure
+- `TaskQuery` - Flexible task querying
 
 ### 2. Session/History Management
 
@@ -50,22 +50,22 @@ Complete transparency for non-technical users to understand what agents are doin
 - `Screenshot` - Browser screenshot with annotations
 - `TimelineEntry` - User-friendly display format
 
-### 3. Goal-Oriented Agent
+### 3. Task-Oriented Agent
 
-Enhanced autonomous agent that works with the goal hierarchy.
+Enhanced autonomous agent that works with the task hierarchy.
 
 **Files Created:**
-- `backend/src/agents/goal-oriented-agent.ts` - Advanced agent with goal decomposition
+- `backend/src/agents/task-oriented-agent.ts` - Advanced agent with task decomposition
 
 **How It Works:**
-1. Agent receives a high-level goal (e.g., "Create a comprehensive research report on renewable energy")
-2. Agent uses LLM to decide if goal should be decomposed or executed directly
-3. If complex, agent breaks it into 3-7 sub-goals with specific priorities
-4. Agent executes each sub-goal recursively (up to max depth limit)
+1. Agent receives a high-level task (e.g., "Create a comprehensive research report on renewable energy")
+2. Agent uses LLM to decide if task should be decomposed or executed directly
+3. If complex, agent breaks it into 3-7 sub-tasks with specific priorities
+4. Agent executes each sub-task recursively (up to max depth limit)
 5. All actions are recorded in the session history
-6. Parent goals auto-complete when all children finish
+6. Parent tasks auto-complete when all children finish
 
-**Example Goal Decomposition:**
+**Example Task Decomposition:**
 
 ```
 Root: "Create a comprehensive research report on renewable energy"
@@ -88,12 +88,12 @@ Root: "Create a comprehensive research report on renewable energy"
 
 ### For Non-Technical Users
 
-**Setting a Goal:**
+**Setting a Task:**
 ```typescript
-// Simply provide a natural language goal
-const agent = new GoalOrientedAgent({
+// Simply provide a natural language task
+const agent = new TaskOrientedAgent({
   name: 'MyAgent',
-  rootGoal: 'Research and summarize climate change solutions',
+  rootTask: 'Research and summarize climate change solutions',
   // ... config
 });
 
@@ -104,7 +104,7 @@ await agent.start(); // Agent figures out the rest!
 - Real-time timeline shows what the agent is doing
 - Each entry has a plain English summary
 - Screenshots show visual proof of browser actions
-- Goal tree shows the overall strategy
+- Task tree shows the overall strategy
 
 **Timeline Example:**
 ```
@@ -128,46 +128,46 @@ The system integrates cleanly with existing components:
 ## Current Status
 
 ### ✅ Completed:
-- Goal hierarchy type definitions
+- Task hierarchy type definitions
 - Session/history type definitions
-- GoalManager service implementation
+- TaskManager service implementation
 - SessionManager service implementation
-- GoalOrientedAgent implementation
-- Demo script for goal hierarchy
+- TaskOrientedAgent implementation
+- Demo script for task hierarchy
 
 ### ⏳ Needs TypeScript Fixes:
-- Some imports need adjustment (Goal, GoalDecomposition exports)
+- Some imports need adjustment (Task, TaskDecomposition exports)
 - Agent interface needs pause/resume/onMessage methods
 - SystemEvent format needs id and source fields
 - currentTask type should allow string
 
 ### 🔄 Next Steps:
 1. Fix TypeScript compilation errors
-2. Test goal decomposition with real scenarios
+2. Test task decomposition with real scenarios
 3. Add browser screenshot capture (requires browser MCP server)
 4. Build admin dashboard UI to visualize sessions
-5. Add database persistence for goals and sessions
-6. Implement goal dependencies (some goals must complete before others)
+5. Add database persistence for tasks and sessions
+6. Implement task dependencies (some tasks must complete before others)
 
 ## Example Use Cases
 
 ### 1. Simple Task
-Goal: "Create a file called hello.txt"
+Task: "Create a file called hello.txt"
 - No decomposition needed
 - Executes directly with filesystem tools
 
 ### 2. Medium Complexity
-Goal: "Research renewable energy and create a report"
+Task: "Research renewable energy and create a report"
 - Decomposes into: Research → Analyze → Write → Format
-- Each sub-goal executed sequentially
+- Each sub-task executed sequentially
 - Results combined in final report
 
 ### 3. High Complexity
-Goal: "Address climate change"
+Task: "Address climate change"
 - Decomposes into: Research solutions → Identify stakeholders → Create action plan → Implement outreach
-- Each sub-goal further decomposes
+- Each sub-task further decomposes
 - Multi-level hierarchy (up to maxDepth)
-- Could involve multiple agents working on different sub-goals
+- Could involve multiple agents working on different sub-tasks
 
 ## Benefits
 
@@ -177,22 +177,22 @@ Goal: "Address climate change"
 - **Reliable**: Self-correcting and comprehensive action logging
 
 ### For Developers:
-- **Extensible**: Easy to add new goal types and decomposition strategies
+- **Extensible**: Easy to add new task types and decomposition strategies
 - **Observable**: Full event streams for monitoring and debugging
-- **Scalable**: Goals can be distributed across multiple agents
+- **Scalable**: Tasks can be distributed across multiple agents
 
 ### vs. E2B:
 - E2B: Developer-focused, code execution sandbox
-- Mosaic: User-focused, autonomous goal accomplishment
+- Mosaic: User-focused, autonomous task accomplishment
 - E2B: Low-level (run this code)
 - Mosaic: High-level (achieve this outcome)
 
 ## Configuration
 
-### Goal-Oriented Agent Options:
+### Task-Oriented Agent Options:
 - `maxDepth`: Maximum decomposition depth (default: 5)
 - `sessionId`: Session to record actions in
-- `goalManager`: Shared goal manager for multi-agent scenarios
+- `taskManager`: Shared task manager for multi-agent scenarios
 - `sessionManager`: Session manager for action recording
 
 ### Session Options:
@@ -202,11 +202,11 @@ Goal: "Address climate change"
 
 ## API Examples
 
-### Creating and Working on Goals
+### Creating and Working on Tasks
 
 ```typescript
-// Create root goal
-const rootGoal = await goalManager.createGoal({
+// Create root task
+const rootTask = await taskManager.createTask({
   title: 'Build a web scraper for news articles',
   description: 'Scrape and analyze news from multiple sources',
   priority: 'high',
@@ -214,10 +214,10 @@ const rootGoal = await goalManager.createGoal({
 });
 
 // Agent decomposes it
-const decomposition: GoalDecomposition = {
-  goalId: rootGoal.id,
+const decomposition: TaskDecomposition = {
+  taskId: rootTask.id,
   reasoning: 'Need to break this into research, implementation, and testing phases',
-  subGoals: [
+  subTasks: [
     {
       title: 'Research news website structures',
       description: 'Analyze HTML structure of target sites',
@@ -239,25 +239,25 @@ const decomposition: GoalDecomposition = {
   ],
 };
 
-await goalManager.decomposeGoal(decomposition);
+await taskManager.decomposeTask(decomposition);
 ```
 
-### Querying Goals
+### Querying Tasks
 
 ```typescript
-// Get all pending goals for an agent
-const pendingGoals = goalManager.queryGoals({
+// Get all pending tasks for an agent
+const pendingTasks = taskManager.queryTasks({
   status: 'pending',
   assignedTo: 'agent-123',
 });
 
-// Get all high-priority goals
-const urgentGoals = goalManager.queryGoals({
+// Get all high-priority tasks
+const urgentTasks = taskManager.queryTasks({
   priority: ['critical', 'high'],
 });
 
-// Get goal tree for visualization
-const tree = goalManager.getGoalTree(rootGoalId);
+// Get task tree for visualization
+const tree = taskManager.getTaskTree(rootTaskId);
 ```
 
 ### Session Timeline
@@ -273,9 +273,9 @@ const exported = await sessionManager.exportSession(sessionId);
 
 ## Future Enhancements
 
-1. **Goal Templates**: Pre-defined decomposition strategies for common goals
-2. **Multi-Agent Coordination**: Agents claim and work on different sub-goals
-3. **Goal Dependencies**: DAG-based execution order
+1. **Task Templates**: Pre-defined decomposition strategies for common tasks
+2. **Multi-Agent Coordination**: Agents claim and work on different sub-tasks
+3. **Task Dependencies**: DAG-based execution order
 4. **Cost Estimation**: Predict time/cost before starting
 5. **Interactive Approval**: User approves decomposition before execution
 6. **Learning**: Agents learn better decomposition strategies over time

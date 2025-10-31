@@ -17,7 +17,7 @@ interface AgentRow {
   status: string;
   config: string;
   metadata: string | null;
-  root_goal: string | null;
+  root_task: string | null;
   session_id: string | null;
   created_at: number;
   updated_at: number;
@@ -30,7 +30,7 @@ export interface AgentRecord {
   status: 'idle' | 'running' | 'paused' | 'stopped' | 'error';
   config: AgentConfig;
   metadata: Record<string, unknown>;
-  rootGoal?: string;
+  rootTask?: string;
   sessionId?: string;
   createdAt: Date;
   updatedAt: Date;
@@ -44,7 +44,7 @@ export class AgentRepository extends BaseRepository {
   save(agent: AgentRecord): void {
     const stmt = this.db.prepare(`
       INSERT OR REPLACE INTO agents (
-        id, name, type, status, config, metadata, root_goal, session_id, created_at, updated_at
+        id, name, type, status, config, metadata, root_task, session_id, created_at, updated_at
       ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
     `);
 
@@ -55,7 +55,7 @@ export class AgentRepository extends BaseRepository {
       agent.status,
       this.serializeJson(agent.config),
       this.serializeJson(agent.metadata),
-      agent.rootGoal || null,
+      agent.rootTask || null,
       agent.sessionId || null,
       this.toTimestamp(agent.createdAt),
       this.toTimestamp(agent.updatedAt)
@@ -75,7 +75,7 @@ export class AgentRepository extends BaseRepository {
       status: row.status as AgentRecord['status'],
       config: this.deserializeJson(row.config)!,
       metadata: this.deserializeJson(row.metadata) || {},
-      rootGoal: row.root_goal || undefined,
+      rootTask: row.root_task || undefined,
       sessionId: row.session_id || undefined,
       createdAt: this.fromTimestamp(row.created_at)!,
       updatedAt: this.fromTimestamp(row.updated_at)!,
@@ -93,7 +93,7 @@ export class AgentRepository extends BaseRepository {
       status: row.status as AgentRecord['status'],
       config: this.deserializeJson(row.config)!,
       metadata: this.deserializeJson(row.metadata) || {},
-      rootGoal: row.root_goal || undefined,
+      rootTask: row.root_task || undefined,
       sessionId: row.session_id || undefined,
       createdAt: this.fromTimestamp(row.created_at)!,
       updatedAt: this.fromTimestamp(row.updated_at)!,
@@ -111,7 +111,7 @@ export class AgentRepository extends BaseRepository {
       status: row.status as AgentRecord['status'],
       config: this.deserializeJson(row.config)!,
       metadata: this.deserializeJson(row.metadata) || {},
-      rootGoal: row.root_goal || undefined,
+      rootTask: row.root_task || undefined,
       sessionId: row.session_id || undefined,
       createdAt: this.fromTimestamp(row.created_at)!,
       updatedAt: this.fromTimestamp(row.updated_at)!,
@@ -129,7 +129,7 @@ export class AgentRepository extends BaseRepository {
       status: row.status as AgentRecord['status'],
       config: this.deserializeJson(row.config)!,
       metadata: this.deserializeJson(row.metadata) || {},
-      rootGoal: row.root_goal || undefined,
+      rootTask: row.root_task || undefined,
       sessionId: row.session_id || undefined,
       createdAt: this.fromTimestamp(row.created_at)!,
       updatedAt: this.fromTimestamp(row.updated_at)!,
@@ -175,9 +175,9 @@ export class AgentRepository extends BaseRepository {
       values.push(this.serializeJson(updates.metadata));
     }
 
-    if (updates.rootGoal !== undefined) {
-      fields.push('root_goal = ?');
-      values.push(updates.rootGoal);
+    if (updates.rootTask !== undefined) {
+      fields.push('root_task = ?');
+      values.push(updates.rootTask);
     }
 
     if (updates.sessionId !== undefined) {

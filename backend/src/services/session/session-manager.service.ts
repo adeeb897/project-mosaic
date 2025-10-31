@@ -18,24 +18,24 @@ import { EventEmitter } from 'events';
 import { v4 as uuidv4 } from 'uuid';
 import { logger } from '../../core/logger';
 import { EventBus } from '../../core/event-bus';
-import { GoalManager } from '../goal/goal-manager.service';
 import { SessionRepository } from '../../persistence/repositories/session.repository';
 import { ActionRepository } from '../../persistence/repositories/action.repository';
 import { getDatabase } from '../../persistence/database';
+import { TaskManager } from '../task/task-manager.service';
 
 export class SessionManager extends EventEmitter {
   private sessionRepo: SessionRepository;
   private actionRepo: ActionRepository;
   private screenshots: Map<string, Screenshot> = new Map();
   private eventBus: EventBus;
-  private goalManager: GoalManager;
+  private taskManager: TaskManager;
   private managerLogger = logger.child({ service: 'session-manager' });
 
-  constructor(eventBus: EventBus, goalManager: GoalManager) {
+  constructor(eventBus: EventBus, taskManager: TaskManager) {
     super();
     this.eventBus = eventBus;
-    this.goalManager = goalManager;
-    
+    this.taskManager = taskManager;
+
     const db = getDatabase();
     this.sessionRepo = new SessionRepository(db.getDb());
     this.actionRepo = new ActionRepository(db.getDb());
@@ -88,7 +88,7 @@ export class SessionManager extends EventEmitter {
     type: ActionType,
     action: string,
     details: ActionRecord['details'],
-    goalId?: string,
+    taskId?: string,
     _cost?: ActionRecord['cost']
   ): Promise<ActionRecord> {
     const session = this.sessionRepo.findById(sessionId);
@@ -99,7 +99,7 @@ export class SessionManager extends EventEmitter {
     const record = this.actionRepo.create({
       sessionId,
       agentId,
-      goalId,
+      taskId,
       type,
       status: 'started',
       action,
@@ -146,11 +146,24 @@ export class SessionManager extends EventEmitter {
     const duration = Date.now() - action.timestamp.getTime();
 
     // Update details
-    if (result !== undefined) action.details.result = result;
+    if (result !== undefined) {
+      action.details.result = result;
+
+      // Debug: Log if result contains screenshot data
+      if ((result as any)?.data?.screenshot?.base64) {
+        logger.info('Action completed with screenshot', {
+          actionId,
+          tool: action.details.tool,
+          hasScreenshot: true,
+          base64Length: (result as any).data.screenshot.base64.length,
+          screenshotUrl: (result as any).data.screenshot.url
+        });
+      }
+    }
     if (error !== undefined) action.details.error = error;
 
-    // Update action status
-    const updated = this.actionRepo.updateStatus(actionId, status, duration);
+    // Update action status AND details (including result)
+    const updated = this.actionRepo.updateStatus(actionId, status, duration, action.details);
     if (!updated) {
       throw new Error(`Failed to update action ${actionId}`);
     }
@@ -238,8 +251,8 @@ export class SessionManager extends EventEmitter {
       return this.actionRepo.findByAgentId(query.agentId, query.limit);
     }
 
-    if (query.goalId) {
-      return this.actionRepo.findByGoalId(query.goalId);
+    if (query.taskId) {
+      return this.actionRepo.findByTaskId(query.taskId);
     }
 
     // For complex queries, would need more repository methods
@@ -251,16 +264,32 @@ export class SessionManager extends EventEmitter {
    * Get timeline for user-friendly display
    */
   getTimeline(sessionId: string, limit: number = 100): TimelineEntry[] {
-    const actions = this.queryActions({ sessionId, limit });
+    const actions = this.queryActions({ sessionId, limit, includeScreenshots: true });
 
-    return actions.map((action) => this.actionToTimelineEntry(action));
+    const timeline = actions.map((action) => this.actionToTimelineEntry(action));
+
+    // Debug: Log if any timeline entries have screenshot data
+    const entriesWithScreenshots = timeline.filter(
+      (entry) => !!(entry.technicalDetails as any)?.result?.data?.screenshot?.base64
+    );
+
+    if (entriesWithScreenshots.length > 0) {
+      logger.info('Timeline includes screenshot entries', {
+        sessionId,
+        total: timeline.length,
+        withScreenshots: entriesWithScreenshots.length,
+        firstScreenshotTool: (entriesWithScreenshots[0].technicalDetails as any)?.tool
+      });
+    }
+
+    return timeline;
   }
 
   /**
    * Convert action to timeline entry
    */
   private actionToTimelineEntry(action: ActionRecord): TimelineEntry {
-    const goal = action.goalId ? this.goalManager.getGoal(action.goalId) : undefined;
+    const task = action.taskId ? this.taskManager.getTask(action.taskId) : undefined;
 
     // Generate user-friendly summary
     let summary = action.action;
@@ -268,15 +297,15 @@ export class SessionManager extends EventEmitter {
     let color = '#4A90E2';
 
     switch (action.type) {
-      case 'goal_created':
+      case 'task_created':
         icon = '🎯';
         color = '#50C878';
-        summary = `Started working on: ${action.details.metadata?.goalTitle || 'new goal'}`;
+        summary = `Started working on: ${action.details.metadata?.taskTitle || 'new task'}`;
         break;
-      case 'goal_completed':
+      case 'task_completed':
         icon = '✅';
         color = '#50C878';
-        summary = `Completed: ${goal?.title || action.action}`;
+        summary = `Completed: ${task?.title || action.action}`;
         break;
       case 'tool_invoked':
         icon = '🛠️';
@@ -311,8 +340,8 @@ export class SessionManager extends EventEmitter {
       icon,
       color,
       screenshotUrl: action.screenshotUrl,
-      goalId: action.goalId,
-      goalTitle: goal?.title,
+      taskId: action.taskId,
+      taskTitle: task?.title,
       actionId: action.id,
       summary,
       technicalDetails: action.details,
@@ -333,17 +362,17 @@ export class SessionManager extends EventEmitter {
       (s) => s.sessionId === sessionId
     );
 
-    // Get all related goals
-    const goalIds = new Set(actions.map((a) => a.goalId).filter((id): id is string => !!id));
-    const goals = Array.from(goalIds)
-      .map((id) => this.goalManager.getGoal(id))
-      .filter((g): g is NonNullable<ReturnType<typeof this.goalManager.getGoal>> => g !== undefined);
+    // Get all related tasks
+    const taskIds = new Set(actions.map((a) => a.taskId).filter((id): id is string => !!id));
+    const tasks = Array.from(taskIds)
+      .map((id) => this.taskManager.getTask(id))
+      .filter((g): g is NonNullable<ReturnType<typeof this.taskManager.getTask>> => g !== undefined);
 
     const timeline = this.getTimeline(sessionId, 1000);
 
     return {
       session,
-      goals,
+      tasks,
       actions,
       screenshots,
       timeline,
@@ -363,37 +392,37 @@ export class SessionManager extends EventEmitter {
    * Subscribe to events for automatic recording
    */
   private subscribeToEvents() {
-    // Record goal events
-    this.eventBus.subscribe('goal.created', async (event) => {
-      const { goal } = event.data;
-      if (goal.metadata.sessionId) {
+    // Record task events
+    this.eventBus.subscribe('task.created', async (event) => {
+      const { task } = event.data;
+      if (task.metadata.sessionId) {
         await this.recordAction(
-          goal.metadata.sessionId,
-          goal.createdBy,
-          'goal_created',
-          `Created goal: ${goal.title}`,
-          { metadata: { goalTitle: goal.title, goalId: goal.id } },
-          goal.id
+          task.metadata.sessionId,
+          task.createdBy,
+          'task_created',
+          `Created task: ${task.title}`,
+          { metadata: { taskTitle: task.title, taskId: task.id } },
+          task.id
         );
       }
     });
 
-    this.eventBus.subscribe('goal.completed', async (event) => {
-      const { goal } = event.data;
-      if (goal.metadata.sessionId) {
-        const session = this.sessionRepo.findById(goal.metadata.sessionId);
+    this.eventBus.subscribe('task.completed', async (event) => {
+      const { task } = event.data;
+      if (task.metadata.sessionId) {
+        const session = this.sessionRepo.findById(task.metadata.sessionId);
         if (session) {
-          session.stats.goalsCompleted++;
+          session.stats.tasksCompleted++;
         }
       }
     });
 
-    this.eventBus.subscribe('goal.failed', async (event) => {
-      const { goal } = event.data;
-      if (goal.metadata.sessionId) {
-        const session = this.sessionRepo.findById(goal.metadata.sessionId);
+    this.eventBus.subscribe('task.failed', async (event) => {
+      const { task } = event.data;
+      if (task.metadata.sessionId) {
+        const session = this.sessionRepo.findById(task.metadata.sessionId);
         if (session) {
-          session.stats.goalsFailed++;
+          session.stats.tasksFailed++;
         }
       }
     });

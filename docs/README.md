@@ -20,7 +20,7 @@ Complete guides for building autonomous AI agents.
 ```typescript
 createAgent({
   name: "WriterAgent",
-  goal: "Write a blog post about AI trends"
+  task: "Write a blog post about AI trends"
 })
 ```
 
@@ -28,7 +28,7 @@ createAgent({
 ```typescript
 createAgent({
   name: "ResearchAgent",
-  goal: "Research top AI companies and compare them"
+  task: "Research top AI companies and compare them"
 })
 ```
 
@@ -36,7 +36,7 @@ createAgent({
 ```typescript
 createAgent({
   name: "OrganizerAgent",
-  goal: "Organize downloads by type and date"
+  task: "Organize downloads by type and date"
 })
 ```
 
@@ -47,7 +47,7 @@ createAgent({
 ```http
 # Create agent
 POST /api/agents
-{ "name": "MyAgent", "goal": "..." }
+{ "name": "MyAgent", "task": "..." }
 
 # Start agent
 POST /api/agents/{id}/start
@@ -75,7 +75,7 @@ docker run -d -p 6379:6379 redis:7-alpine
 ```
 
 **Agent stuck**
-- Make goal more specific
+- Make task more specific
 - Increase maxSteps
 - Check logs: `LOG_LEVEL=debug`
 

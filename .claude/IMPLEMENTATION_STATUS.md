@@ -38,8 +38,8 @@
 ### ✅ Autonomous Agent System (100% Complete) - **KEY DIFFERENTIATOR**
 
 1. **Autonomous Agent** - [backend/src/agents/autonomous-agent.ts](./backend/src/agents/autonomous-agent.ts)
-   - **Natural language goal input** - Users describe what they want in plain English
-   - **Self-directed execution** - Agent breaks down goals into steps
+   - **Natural language task input** - Users describe what they want in plain English
+   - **Self-directed execution** - Agent breaks down tasks into steps
    - **Self-correcting** - Handles errors and finds solutions
    - **User-friendly explanations** - Explains actions in simple terms
    - **Progress tracking** - Real-time updates on what it's doing
@@ -71,7 +71,7 @@
 
 2. **API Routes** - [backend/src/api/routes.ts](./backend/src/api/routes.ts)
    - RESTful API for agent management
-   - Create agents with goals
+   - Create agents with tasks
    - Monitor progress
    - Start/stop agents
 
@@ -89,7 +89,7 @@
 
 ---
 
-## 🚀 Key Differentiator: Autonomous Goal-Oriented Agents
+## 🚀 Key Differentiator: Autonomous Task-Oriented Agents
 
 ### What Makes Project Mosaic Different
 
@@ -97,9 +97,9 @@
 
 | Feature | Project Mosaic | E2B |
 |---------|----------------|-----|
-| **Primary Use** | High-level autonomous goals | Low-level code execution |
+| **Primary Use** | High-level autonomous tasks | Low-level code execution |
 | **Target User** | **Non-technical users** | Developers |
-| **Input** | **Natural language goals** | Code to execute |
+| **Input** | **Natural language tasks** | Code to execute |
 | **Autonomy** | **Agent decides actions** | User controls execution |
 | **Error Handling** | **Self-correcting** | Returns errors to user |
 | **Example** | "Organize my files by date" | `fs.readdir(); fs.rename();` |
@@ -108,18 +108,18 @@
 
 | Feature | Project Mosaic | LangChain/LangGraph |
 |---------|----------------|---------------------|
-| **Abstraction** | **Natural language goals** | Code-defined workflows |
+| **Abstraction** | **Natural language tasks** | Code-defined workflows |
 | **Setup** | **No coding required** | Developer writes code |
 | **Autonomy** | **Fully autonomous** | Developer-guided |
 | **Target User** | **End users** | Developers building apps |
 
-#### **Key Innovation: Autonomous Goal Execution**
+#### **Key Innovation: Autonomous Task Execution**
 
 ```typescript
 // Project Mosaic - For everyone
 const agent = new AutonomousAgent({
   name: "MyAgent",
-  goal: "Research AI news and save a summary to a file"
+  task: "Research AI news and save a summary to a file"
   // That's it! Agent figures out the rest
 });
 
@@ -135,7 +135,7 @@ const workflow = new StateGraph()
 
 ### How It Works
 
-1. **User gives high-level goal**
+1. **User gives high-level task**
    ```
    "Create a report about today's tech news"
    ```
@@ -233,11 +233,11 @@ const workflow = new StateGraph()
 
 ### What You Can Do Right Now
 
-1. ✅ **Create autonomous agents with natural language goals**
+1. ✅ **Create autonomous agents with natural language tasks**
    ```typescript
    createAgent({
      name: "WriterAgent",
-     goal: "Write a story about a robot"
+     task: "Write a story about a robot"
    })
    ```
 
@@ -255,7 +255,7 @@ const workflow = new StateGraph()
 4. ✅ **Agents handle errors autonomously**
    - No crashes on failures
    - Self-correction built-in
-   - Continues toward goal
+   - Continues toward task
 
 5. ✅ **Event-driven architecture**
    - All actions logged
@@ -280,14 +280,14 @@ cp .env.example .env
 # 3. Start Redis
 docker run -d -p 6379:6379 redis:7-alpine
 
-# 4. Run demo
+# 4. Run
 cd backend
 npm run dev
 ```
 
 ### What the Demo Does
 
-1. Creates an agent with goal: "Create a file with a greeting"
+1. Creates an agent with task: "Create a file with a greeting"
 2. Agent autonomously:
    - Plans the steps
    - Uses filesystem tools
@@ -322,8 +322,8 @@ Overall Progress:   ███████░░░░░░░░░░░░░
 Every component built with non-technical users in mind:
 
 ```typescript
-// Simple goal input
-goal: "Do something useful"
+// Simple task input
+task: "Do something useful"
 
 // Clear progress updates
 thought: "I'm doing X to achieve Y"
@@ -341,7 +341,7 @@ Agents make decisions without user intervention:
 - What steps to take
 - Which tools to use
 - How to handle errors
-- When goal is complete
+- When task is complete
 ```
 
 ### 3. Modular & Extensible
@@ -364,7 +364,7 @@ class MyCustomAgent extends AutonomousAgent
 ## 🎉 What's Working
 
 ✅ **Full autonomous agent system**
-✅ **Natural language goal input**
+✅ **Natural language task input**
 ✅ **Self-correcting execution**
 ✅ **User-friendly explanations**
 ✅ **Event-driven architecture**

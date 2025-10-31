@@ -4,26 +4,41 @@
  */
 'use client';
 
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
+import { useRouter, useSearchParams } from 'next/navigation';
 import { AgentManager } from '@/components/AgentManager';
-import { GoalsKanban } from '@/components/GoalsKanban';
+import { TaskBoard } from '@/components/TaskBoard';
 import { MultiAgentActivity } from '@/components/MultiAgentActivity';
-import { BrowserScreenshots } from '@/components/BrowserScreenshots';
 import { useWebSocket } from '@/hooks/useWebSocket';
-import { Users, Target, Activity, Monitor, Sparkles } from 'lucide-react';
+import { Users, CheckSquare, Activity, Sparkles } from 'lucide-react';
 
-type Tab = 'agents' | 'goals' | 'activity' | 'browser';
+type Tab = 'agents' | 'tasks' | 'activity';
 
 export default function Dashboard() {
+  const router = useRouter();
+  const searchParams = useSearchParams();
   const [activeTab, setActiveTab] = useState<Tab>('agents');
   const { isConnected, events } = useWebSocket();
 
+  // Sync activeTab with URL
+  useEffect(() => {
+    const tab = searchParams.get('tab') as Tab;
+    if (tab && ['agents', 'tasks', 'activity'].includes(tab)) {
+      setActiveTab(tab);
+    }
+  }, [searchParams]);
+
   const tabs: Array<{ id: Tab; label: string; icon: React.ReactNode }> = [
     { id: 'agents', label: 'Agents', icon: <Users size={18} /> },
-    { id: 'goals', label: 'Goals Board', icon: <Target size={18} /> },
+    { id: 'tasks', label: 'Tasks', icon: <CheckSquare size={18} /> },
     { id: 'activity', label: 'Activity', icon: <Activity size={18} /> },
-    { id: 'browser', label: 'Browser', icon: <Monitor size={18} /> },
   ];
+
+  const navigateToTab = (tab: Tab, params?: Record<string, string>) => {
+    const searchParams = new URLSearchParams({ tab, ...params });
+    router.push(`/?${searchParams.toString()}`);
+    setActiveTab(tab);
+  };
 
   return (
     <div className="min-h-screen">
@@ -63,7 +78,7 @@ export default function Dashboard() {
             {tabs.map((tab) => (
               <button
                 key={tab.id}
-                onClick={() => setActiveTab(tab.id)}
+                onClick={() => navigateToTab(tab.id)}
                 className={`
                   flex items-center gap-2 px-6 py-4 font-semibold text-sm rounded-t-2xl
                   transition-all duration-300 relative
@@ -90,13 +105,23 @@ export default function Dashboard() {
         <div className="animate-in fade-in slide-in-from-bottom-4 duration-500">
           {activeTab === 'agents' && (
             <AgentManager
-              onSessionSelect={() => setActiveTab('activity')}
+              onSessionSelect={(agentId) => navigateToTab('activity', { agentId })}
               realtimeEvents={events}
             />
           )}
-          {activeTab === 'goals' && <GoalsKanban realtimeEvents={events} />}
-          {activeTab === 'activity' && <MultiAgentActivity realtimeEvents={events} />}
-          {activeTab === 'browser' && <BrowserScreenshots realtimeEvents={events} />}
+          {activeTab === 'tasks' && (
+            <TaskBoard
+              realtimeEvents={events}
+              onTaskClick={(taskId) => navigateToTab('activity', { taskId })}
+            />
+          )}
+          {activeTab === 'activity' && (
+            <MultiAgentActivity
+              realtimeEvents={events}
+              initialAgentId={searchParams.get('agentId') || undefined}
+              initialTaskId={searchParams.get('taskId') || undefined}
+            />
+          )}
         </div>
       </main>
 

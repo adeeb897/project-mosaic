@@ -6,7 +6,7 @@ const inter = Inter({ subsets: ['latin'] });
 
 export const metadata: Metadata = {
   title: 'Project Mosaic - Admin Dashboard',
-  description: 'Manage autonomous AI agents and goals',
+  description: 'Manage autonomous AI agents and tasks',
 };
 
 export default function RootLayout({

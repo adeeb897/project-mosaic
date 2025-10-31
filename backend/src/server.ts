@@ -2,9 +2,9 @@
  * Production Server Entry Point
  *
  * Starts the Project Mosaic API server with all services:
- * - REST API for agent, goal, session, and memory management
+ * - REST API for agent, task, session, and memory management
  * - WebSocket for real-time updates
- * - Goal hierarchy system
+ * - Task management system
  * - Session/history tracking
  * - Agent memory system
  * - SQLite persistence
@@ -17,7 +17,7 @@ import { PluginRegistry } from './core/plugin-registry';
 import { OpenAIProvider } from './llm/openai-provider';
 import { FilesystemMCPServer } from './mcp/filesystem-server';
 import { BrowserMCPServer } from './mcp/browser-server';
-import { GoalManager } from './services/goal/goal-manager.service';
+import { TaskManager } from './services/task/task-manager.service';
 import { SessionManager } from './services/session/session-manager.service';
 import { MemoryManager } from './services/memory/memory-manager.service';
 import { MemoryRepository } from './persistence/repositories';
@@ -54,18 +54,17 @@ async function main() {
     logger.info('Registering MCP servers...');
     const path = require('path');
     const workspacePath = path.resolve(process.cwd(), 'workspace');
-    const screenshotsPath = path.resolve(process.cwd(), 'storage', 'screenshots');
 
     const filesystemServer = new FilesystemMCPServer(workspacePath);
     await pluginRegistry.register(filesystemServer);
 
-    const browserServer = new BrowserMCPServer(screenshotsPath);
+    const browserServer = new BrowserMCPServer();
     await pluginRegistry.register(browserServer);
 
     // Initialize managers
     logger.info('Initializing managers...');
-    const goalManager = new GoalManager(eventBus);
-    const sessionManager = new SessionManager(eventBus, goalManager);
+    const taskManager = new TaskManager(eventBus);
+    const sessionManager = new SessionManager(eventBus, taskManager);
     const memoryRepo = new MemoryRepository(database.getDb());
     const memoryManager = new MemoryManager(memoryRepo);
 
@@ -73,7 +72,7 @@ async function main() {
     logger.info('Starting API server...');
     const apiServer = new APIServer(
       eventBus,
-      goalManager,
+      taskManager,
       sessionManager,
       memoryManager,
       llmProvider,
@@ -100,8 +99,8 @@ async function main() {
     logger.info('📝 Available Endpoints:');
     logger.info('   - POST /api/agents - Create agent');
     logger.info('   - GET  /api/agents - List agents');
-    logger.info('   - POST /api/goals - Create goal');
-    logger.info('   - GET  /api/goals - Query goals');
+    logger.info('   - POST /api/tasks - Create task');
+    logger.info('   - GET  /api/tasks - Query tasks');
     logger.info('   - GET  /api/sessions/:id/timeline - View activity');
     logger.info('   - GET  /api/agents/:id/memory - View agent memory');
     logger.info('   - POST /api/agents/:id/memory - Add memory entry');

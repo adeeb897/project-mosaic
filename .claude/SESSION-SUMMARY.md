@@ -2,24 +2,24 @@
 
 ## What We Built
 
-A complete **autonomous agent platform** with **admin dashboard** for non-technical users to create and manage AI agents that accomplish high-level goals.
+A complete **autonomous agent platform** with **admin dashboard** for non-technical users to create and manage AI agents that accomplish high-level tasks.
 
 ## Key Achievements
 
-### 1. Goal Hierarchy System ✅
+### 1. Task Hierarchy System ✅
 
-**Why**: Agents need to handle extremely ambitious goals like "address climate change" by breaking them down autonomously.
+**Why**: Agents need to handle extremely ambitious tasks like "address climate change" by breaking them down autonomously.
 
 **What we built**:
-- `GoalManager` service - Manages goal trees with automatic parent completion
-- `GoalOrientedAgent` - Agent that decomposes complex goals using LLM reasoning
-- Recursive goal decomposition (up to 5 levels deep)
-- Shared goals visible across all agents
+- `TaskManager` service - Manages task trees with automatic parent completion
+- `TaskOrientedAgent` - Agent that decomposes complex tasks using LLM reasoning
+- Recursive task decomposition (up to 5 levels deep)
+- Shared tasks visible across all agents
 
 **Files**:
-- `shared/types/goal-hierarchy.ts` - Type definitions
-- `backend/src/services/goal/goal-manager.service.ts` - Service implementation
-- `backend/src/agents/goal-oriented-agent.ts` - Enhanced autonomous agent
+- `shared/types/task-hierarchy.ts` - Type definitions
+- `backend/src/services/task/task-manager.service.ts` - Service implementation
+- `backend/src/agents/task-oriented-agent.ts` - Enhanced autonomous agent
 
 ### 2. Session & History Management ✅
 
@@ -43,13 +43,13 @@ A complete **autonomous agent platform** with **admin dashboard** for non-techni
 **What we built**:
 - Express REST API with CORS
 - Socket.IO WebSocket for real-time events
-- Complete CRUD for agents, goals, sessions
+- Complete CRUD for agents, tasks, sessions
 - Event streaming to connected clients
 
 **Files**:
 - `backend/src/api/server.ts` - Main API server
 - `backend/src/api/routes/agent.routes.ts` - Agent management API
-- `backend/src/api/routes/goal.routes.ts` - Goal management API
+- `backend/src/api/routes/task.routes.ts` - Task management API
 - `backend/src/api/routes/session.routes.ts` - Session/history API
 
 **Endpoints**:
@@ -62,13 +62,13 @@ Agents:
   POST   /api/agents/:id/stop  - Stop agent
   DELETE /api/agents/:id      - Delete agent
 
-Goals:
-  POST   /api/goals           - Create goal
-  GET    /api/goals           - Query goals
-  GET    /api/goals/roots     - Get root goals
-  GET    /api/goals/:id/tree  - Get hierarchy
-  PATCH  /api/goals/:id       - Update goal
-  POST   /api/goals/:id/decompose - Decompose goal
+Tasks:
+  POST   /api/tasks           - Create task
+  GET    /api/tasks           - Query tasks
+  GET    /api/tasks/roots     - Get root tasks
+  GET    /api/tasks/:id/tree  - Get hierarchy
+  PATCH  /api/tasks/:id       - Update task
+  POST   /api/tasks/:id/decompose - Decompose task
 
 Sessions:
   GET    /api/sessions/:id/timeline - Get timeline
@@ -84,20 +84,20 @@ Sessions:
 - Next.js 14 + React + TypeScript
 - Tailwind CSS for styling
 - Real-time WebSocket integration
-- 4 main views: Agents, Goals, Activity, Tree
+- 4 main views: Agents, Tasks, Activity, Tree
 
 **Components**:
 1. **Agent Manager** - Create, start, stop, delete agents
-2. **Goal Manager** - Create goals with statistics dashboard
+2. **Task Manager** - Create tasks with statistics dashboard
 3. **Activity Timeline** - Live feed with emojis and screenshots
-4. **Goal Tree** - Interactive hierarchy visualization
+4. **Task Tree** - Interactive hierarchy visualization
 
 **Files**:
 - `frontend/src/app/page.tsx` - Main dashboard layout
 - `frontend/src/components/AgentManager.tsx`
-- `frontend/src/components/GoalManager.tsx`
+- `frontend/src/components/TaskManager.tsx`
 - `frontend/src/components/ActivityTimeline.tsx`
-- `frontend/src/components/GoalTree.tsx`
+- `frontend/src/components/TaskTree.tsx`
 - `frontend/src/hooks/useWebSocket.ts` - Real-time connection
 
 ### 5. Production Server Entry Point ✅
@@ -119,7 +119,7 @@ npm run dev            # Start with auto-reload
 
 # Demos (optional)
 npm run demo:simple    # Simple agent demo
-npm run demo:goals     # Goal hierarchy demo
+npm run demo:tasks     # Task hierarchy demo
 ```
 
 ## User Experience
@@ -130,7 +130,7 @@ npm run demo:goals     # Goal hierarchy demo
 ```
 Dashboard → Agents → Create Agent
   Name: ResearchAgent
-  Goal: "Research renewable energy solutions and create a report"
+  Task: "Research renewable energy solutions and create a report"
   Click: Create
 ```
 
@@ -153,7 +153,7 @@ See live updates:
 
 **Step 4: See the Strategy**
 ```
-Switch to: Goal Tree
+Switch to: Task Tree
 
 View hierarchy:
   ✅ Research renewable energy solutions [completed]
@@ -194,9 +194,9 @@ http://localhost:3001
 ┌─────────────────────────────────┐
 │   Frontend (Next.js)            │
 │   - Agent Manager               │
-│   - Goal Manager                │
+│   - Task Manager                │
 │   - Activity Timeline           │
-│   - Goal Tree Viz               │
+│   - Task Tree Viz               │
 └─────────────────────────────────┘
             ▲ WebSocket (Socket.IO)
             │
@@ -204,12 +204,12 @@ http://localhost:3001
 │   Backend API Server            │
 │   - Express REST API            │
 │   - Socket.IO WebSocket         │
-│   - Goal Manager Service        │
+│   - Task Manager Service        │
 │   - Session Manager Service     │
 └─────────────────────────────────┘
             │
 ┌─────────────────────────────────┐
-│   Goal-Oriented Agent           │
+│   Task-Oriented Agent           │
 │   - Autonomous decomposition    │
 │   - LLM-powered planning        │
 │   - Self-correction             │
@@ -227,10 +227,10 @@ http://localhost:3001
 
 **vs E2B**:
 - E2B: Developer-focused, code execution sandbox
-- Mosaic: User-focused, autonomous goal accomplishment
+- Mosaic: User-focused, autonomous task accomplishment
 
 **vs Other Platforms**:
-- ✅ **High-level goals**: "Address climate change" not "run this script"
+- ✅ **High-level tasks**: "Address climate change" not "run this script"
 - ✅ **Autonomous decomposition**: Agent figures out the steps
 - ✅ **Complete transparency**: Full activity history with screenshots
 - ✅ **Non-technical friendly**: Plain English everywhere
@@ -238,7 +238,7 @@ http://localhost:3001
 
 ## Documentation Created
 
-1. `.claude/GOAL-HIERARCHY-IMPLEMENTATION.md` - Deep dive on goal system
+1. `.claude/GOAL-HIERARCHY-IMPLEMENTATION.md` - Deep dive on task system
 2. `.claude/ADMIN-DASHBOARD-STATUS.md` - Dashboard implementation details
 3. `ADMIN-DASHBOARD-GUIDE.md` - Complete user guide for dashboard
 4. Updated `README.md` - Quick start and overview
@@ -249,7 +249,7 @@ http://localhost:3001
 ✅ Frontend builds successfully
 ✅ WebSocket connection works
 ✅ Agent creation via API
-✅ Goal hierarchy management
+✅ Task hierarchy management
 ✅ Session recording
 ✅ Real-time event streaming
 ✅ All dashboard components render
@@ -257,7 +257,7 @@ http://localhost:3001
 ## Known Issues to Fix
 
 1. **TypeScript compilation errors** in some files:
-   - Goal/GoalDecomposition exports need to be added to index
+   - Task/TaskDecomposition exports need to be added to index
    - Agent interface missing some methods
    - SystemEvent needs id/source fields
 
@@ -281,7 +281,7 @@ http://localhost:3001
 7. Deploy to production
 
 ### Future:
-8. Goal templates (pre-defined common goals)
+8. Task templates (pre-defined common tasks)
 9. Cost estimation before execution
 10. Learning from past executions
 11. Browser notifications
@@ -292,7 +292,7 @@ http://localhost:3001
 ### New Files:
 ```
 shared/types/
-├── goal-hierarchy.ts
+├── task-hierarchy.ts
 └── session-history.ts
 
 backend/src/
@@ -301,15 +301,15 @@ backend/src/
 │   ├── server.ts
 │   └── routes/
 │       ├── agent.routes.ts
-│       ├── goal.routes.ts
+│       ├── task.routes.ts
 │       └── session.routes.ts
 ├── services/
-│   ├── goal/goal-manager.service.ts
+│   ├── task/task-manager.service.ts
 │   └── session/session-manager.service.ts
-├── agents/goal-oriented-agent.ts
+├── agents/task-oriented-agent.ts
 └── demos/ (MOVED)
     ├── simple-demo.ts
-    └── goal-hierarchy-demo.ts
+    └── task-hierarchy-demo.ts
 
 frontend/src/
 ├── app/
@@ -318,9 +318,9 @@ frontend/src/
 │   └── globals.css
 ├── components/
 │   ├── AgentManager.tsx
-│   ├── GoalManager.tsx
+│   ├── TaskManager.tsx
 │   ├── ActivityTimeline.tsx
-│   └── GoalTree.tsx
+│   └── TaskTree.tsx
 ├── hooks/useWebSocket.ts
 └── tailwind.config.ts
 
@@ -349,7 +349,7 @@ If you can do this, everything works:
 5. ✅ Create agent via UI
 6. ✅ Start agent
 7. ✅ See real-time updates in Activity tab
-8. ✅ View goal tree decomposition
+8. ✅ View task tree decomposition
 
 ## Celebration 🎉
 
@@ -357,7 +357,7 @@ We built a **production-ready autonomous agent platform** with:
 - Complete backend API
 - Real-time WebSocket
 - Beautiful admin dashboard
-- Goal hierarchy system
+- Task hierarchy system
 - Session management
 - User-friendly interface
 

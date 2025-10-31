@@ -18,7 +18,7 @@ interface MemoryRow {
   content: string;
   metadata: string | null;
   tags: string | null;
-  related_goal_id: string | null;
+  related_task_id: string | null;
   created_at: number;
   updated_at: number;
   expires_at: number | null;
@@ -39,7 +39,7 @@ export class MemoryRepository extends BaseRepository {
     const stmt = this.db.prepare(`
       INSERT INTO memory_entries (
         id, agent_id, session_id, type, importance, title, content,
-        metadata, tags, related_goal_id, created_at, updated_at, expires_at
+        metadata, tags, related_task_id, created_at, updated_at, expires_at
       ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
     `);
 
@@ -53,7 +53,7 @@ export class MemoryRepository extends BaseRepository {
       request.content,
       request.metadata ? this.serializeJson(request.metadata) : null,
       request.tags ? this.serializeArray(request.tags) : null,
-      request.relatedGoalId || null,
+      request.relatedTaskId || null,
       this.toTimestamp(now),
       this.toTimestamp(now),
       request.expiresAt ? this.toTimestamp(request.expiresAt) : null
@@ -66,7 +66,7 @@ export class MemoryRepository extends BaseRepository {
     const stmt = this.db.prepare(`
       INSERT OR REPLACE INTO memory_entries (
         id, agent_id, session_id, type, importance, title, content,
-        metadata, tags, related_goal_id, created_at, updated_at, expires_at
+        metadata, tags, related_task_id, created_at, updated_at, expires_at
       ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
     `);
 
@@ -80,7 +80,7 @@ export class MemoryRepository extends BaseRepository {
       memory.content,
       this.serializeJson(memory.metadata || {}),
       this.serializeArray(memory.tags || []),
-      memory.relatedGoalId || null,
+      memory.relatedTaskId || null,
       this.toTimestamp(memory.createdAt),
       this.toTimestamp(memory.updatedAt),
       memory.expiresAt ? this.toTimestamp(memory.expiresAt) : null
@@ -184,9 +184,9 @@ export class MemoryRepository extends BaseRepository {
       params.push(query.importance);
     }
 
-    if (query.relatedGoalId) {
-      sql += ' AND related_goal_id = ?';
-      params.push(query.relatedGoalId);
+    if (query.relatedTaskId) {
+      sql += ' AND related_task_id = ?';
+      params.push(query.relatedTaskId);
     }
 
     if (query.tags && query.tags.length > 0) {
@@ -296,7 +296,7 @@ export class MemoryRepository extends BaseRepository {
       content: row.content,
       metadata: this.deserializeJson(row.metadata) || {},
       tags: this.deserializeArray(row.tags),
-      relatedGoalId: row.related_goal_id || undefined,
+      relatedTaskId: row.related_task_id || undefined,
       createdAt: this.fromTimestamp(row.created_at)!,
       updatedAt: this.fromTimestamp(row.updated_at)!,
       expiresAt: this.fromTimestamp(row.expires_at) || undefined,

@@ -1,5 +1,5 @@
 /**
- * Goal Manager - Create and manage goals
+ * Task Manager - Create and manage tasks
  */
 'use client';
 
@@ -9,92 +9,92 @@ import axios from 'axios';
 import { RealtimeEvent } from '@/hooks/useWebSocket';
 import { getApiUrl } from '@/config/api';
 
-interface Goal {
+interface Task {
   id: string;
   title: string;
   description: string;
   status: 'pending' | 'in_progress' | 'completed' | 'failed' | 'blocked';
   priority: 'critical' | 'high' | 'medium' | 'low';
-  parentGoalId?: string;
-  childGoalIds: string[];
+  parentTaskId?: string;
+  childTaskIds: string[];
   createdBy: string;
   assignedTo?: string;
   createdAt: string;
   lastUpdatedAt: string;
 }
 
-interface GoalStats {
+interface TaskStats {
   total: number;
   byStatus: Record<string, number>;
   byPriority: Record<string, number>;
-  rootGoals: number;
+  rootTasks: number;
 }
 
-interface GoalManagerProps {
+interface TaskManagerProps {
   realtimeEvents: RealtimeEvent[];
 }
 
-export function GoalManager({ realtimeEvents }: GoalManagerProps) {
-  const [goals, setGoals] = useState<Goal[]>([]);
-  const [stats, setStats] = useState<GoalStats | null>(null);
+export function TaskManager({ realtimeEvents }: TaskManagerProps) {
+  const [tasks, setTasks] = useState<Task[]>([]);
+  const [stats, setStats] = useState<TaskStats | null>(null);
   const [showCreateForm, setShowCreateForm] = useState(false);
   const [filter, setFilter] = useState<'all' | 'pending' | 'in_progress' | 'completed'>('all');
   const [formData, setFormData] = useState({
     title: '',
     description: '',
-    priority: 'medium' as Goal['priority'],
+    priority: 'medium' as Task['priority'],
     createdBy: 'user',
   });
 
   useEffect(() => {
-    fetchGoals();
+    fetchTasks();
     fetchStats();
   }, []);
 
   useEffect(() => {
     const latestEvent = realtimeEvents[0];
-    if (latestEvent?.type === 'goal:created' || latestEvent?.type === 'goal:updated') {
-      fetchGoals();
+    if (latestEvent?.type === 'task:created' || latestEvent?.type === 'task:updated') {
+      fetchTasks();
       fetchStats();
     }
   }, [realtimeEvents]);
 
-  const fetchGoals = async () => {
+  const fetchTasks = async () => {
     try {
-      const response = await axios.get(getApiUrl('/api/goals'));
-      setGoals(response.data.data);
+      const response = await axios.get(getApiUrl('/api/tasks'));
+      setTasks(response.data.data);
     } catch (error) {
-      console.error('Failed to fetch goals:', error);
+      console.error('Failed to fetch tasks:', error);
     }
   };
 
   const fetchStats = async () => {
     try {
-      const response = await axios.get(getApiUrl('/api/goals/stats'));
+      const response = await axios.get(getApiUrl('/api/tasks/stats'));
       setStats(response.data.data);
     } catch (error) {
       console.error('Failed to fetch stats:', error);
     }
   };
 
-  const createGoal = async () => {
+  const createTask = async () => {
     try {
-      await axios.post(getApiUrl('/api/goals'), formData);
+      await axios.post(getApiUrl('/api/tasks'), formData);
       setShowCreateForm(false);
       setFormData({ title: '', description: '', priority: 'medium', createdBy: 'user' });
-      fetchGoals();
+      fetchTasks();
       fetchStats();
     } catch (error: any) {
-      alert(`Failed to create goal: ${error.response?.data?.error || error.message}`);
+      alert(`Failed to create task: ${error.response?.data?.error || error.message}`);
     }
   };
 
-  const filteredGoals = goals.filter((goal) => {
+  const filteredTasks = tasks.filter((task) => {
     if (filter === 'all') return true;
-    return goal.status === filter;
+    return task.status === filter;
   });
 
-  const getStatusIcon = (status: Goal['status']) => {
+  const getStatusIcon = (status: Task['status']) => {
     switch (status) {
       case 'completed':
         return <CheckCircle2 size={16} className="text-green-600" />;
@@ -107,7 +107,7 @@ export function GoalManager({ realtimeEvents }: GoalManagerProps) {
     }
   };
 
-  const getPriorityColor = (priority: Goal['priority']) => {
+  const getPriorityColor = (priority: Task['priority']) => {
     switch (priority) {
       case 'critical':
         return 'bg-red-100 text-red-800';
@@ -125,15 +125,15 @@ export function GoalManager({ realtimeEvents }: GoalManagerProps) {
       {/* Header */}
       <div className="flex justify-between items-center">
         <div>
-          <h2 className="text-2xl font-bold text-gray-900">Goals</h2>
-          <p className="text-gray-600 mt-1">Create and manage agent goals</p>
+          <h2 className="text-2xl font-bold text-gray-900">Tasks</h2>
+          <p className="text-gray-600 mt-1">Create and manage agent tasks</p>
         </div>
         <button
           onClick={() => setShowCreateForm(true)}
           className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
         >
           <Plus size={20} />
-          Create Goal
+          Create Task
         </button>
       </div>
 
@@ -143,7 +143,7 @@ export function GoalManager({ realtimeEvents }: GoalManagerProps) {
           <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-4">
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-sm text-gray-600">Total Goals</p>
+                <p className="text-sm text-gray-600">Total Tasks</p>
                 <p className="text-2xl font-bold text-gray-900 mt-1">{stats.total}</p>
               </div>
               <Target className="text-gray-400" size={32} />
@@ -191,11 +191,11 @@ export function GoalManager({ realtimeEvents }: GoalManagerProps) {
       {/* Create Form */}
       {showCreateForm && (
         <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
-          <h3 className="text-lg font-semibold mb-4">Create New Goal</h3>
+          <h3 className="text-lg font-semibold mb-4">Create New Task</h3>
           <div className="space-y-4">
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">
-                Goal Title
+                Task Title
               </label>
               <input
                 type="text"
@@ -224,7 +224,7 @@ export function GoalManager({ realtimeEvents }: GoalManagerProps) {
               <select
                 value={formData.priority}
                 onChange={(e) =>
-                  setFormData({ ...formData, priority: e.target.value as Goal['priority'] })
+                  setFormData({ ...formData, priority: e.target.value as Task['priority'] })
                 }
                 className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
               >
@@ -236,7 +236,7 @@ export function GoalManager({ realtimeEvents }: GoalManagerProps) {
             </div>
             <div className="flex gap-3">
               <button
-                onClick={createGoal}
+                onClick={createTask}
                 disabled={!formData.title || !formData.description}
                 className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:bg-gray-300 disabled:cursor-not-allowed transition-colors"
               >
@@ -270,30 +270,30 @@ export function GoalManager({ realtimeEvents }: GoalManagerProps) {
         ))}
       </div>
 
-      {/* Goals List */}
+      {/* Tasks List */}
       <div className="grid gap-4">
-        {filteredGoals.map((goal) => (
+        {filteredTasks.map((task) => (
           <div
-            key={goal.id}
+            key={task.id}
             className="bg-white rounded-lg shadow-sm border border-gray-200 p-6 hover:shadow-md transition-shadow"
           >
             <div className="flex items-start justify-between gap-4">
               <div className="flex-1">
                 <div className="flex items-center gap-2 mb-2">
-                  {getStatusIcon(goal.status)}
-                  <h3 className="text-lg font-semibold text-gray-900">{goal.title}</h3>
+                  {getStatusIcon(task.status)}
+                  <h3 className="text-lg font-semibold text-gray-900">{task.title}</h3>
                 </div>
-                <p className="text-gray-600 mb-3">{goal.description}</p>
+                <p className="text-gray-600 mb-3">{task.description}</p>
                 <div className="flex flex-wrap gap-2 text-sm">
-                  <span className={`px-2 py-1 rounded-full text-xs font-medium ${getPriorityColor(goal.priority)}`}>
-                    {goal.priority}
+                  <span className={`px-2 py-1 rounded-full text-xs font-medium ${getPriorityColor(task.priority)}`}>
+                    {task.priority}
                   </span>
                   <span className="px-2 py-1 rounded-full text-xs font-medium bg-gray-100 text-gray-800">
-                    {goal.status}
+                    {task.status}
                   </span>
-                  {goal.childGoalIds.length > 0 && (
+                  {task.childTaskIds.length > 0 && (
                     <span className="px-2 py-1 rounded-full text-xs font-medium bg-blue-100 text-blue-800">
-                      {goal.childGoalIds.length} sub-goals
+                      {task.childTaskIds.length} sub-tasks
                     </span>
                   )}
                 </div>
@@ -303,9 +303,9 @@ export function GoalManager({ realtimeEvents }: GoalManagerProps) {
         ))}
       </div>
 
-      {filteredGoals.length === 0 && (
+      {filteredTasks.length === 0 && (
         <div className="bg-white rounded-lg border-2 border-dashed border-gray-300 p-12 text-center">
-          <p className="text-gray-500">No goals found. Create a goal to get started!</p>
+          <p className="text-gray-500">No tasks found. Create a task to get started!</p>
         </div>
       )}
     </div>

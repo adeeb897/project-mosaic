@@ -35,13 +35,13 @@ export function useWebSocket(url: string = API_CONFIG.wsURL) {
       console.log('Server message:', data.message);
     });
 
-    // Goal events
-    socket.on('goal:created', (data) => {
-      addEvent('goal:created', data);
+    // Task events
+    socket.on('task:created', (data) => {
+      addEvent('task:created', data);
     });
 
-    socket.on('goal:updated', (data) => {
-      addEvent('goal:updated', data);
+    socket.on('task:updated', (data) => {
+      addEvent('task:updated', data);
     });
 
     // Agent events

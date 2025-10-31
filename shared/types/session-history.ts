@@ -5,13 +5,13 @@
  * and debugging. Essential for non-technical users to understand what agents are doing.
  */
 
-import { Goal } from './goal-hierarchy';
+import { Task } from './task-hierarchy';
 
 export type ActionType =
-  | 'goal_created'
-  | 'goal_started'
-  | 'goal_completed'
-  | 'goal_failed'
+  | 'task_created'
+  | 'task_started'
+  | 'task_completed'
+  | 'task_failed'
   | 'tool_invoked'
   | 'tool_result'
   | 'llm_request'
@@ -32,7 +32,7 @@ export interface ActionRecord {
   id: string;
   sessionId: string;
   agentId: string;
-  goalId?: string;
+  taskId?: string;
 
   // Action details
   type: ActionType;
@@ -76,7 +76,7 @@ export interface Session {
 
   // Participants
   agentIds: string[];
-  rootGoalId?: string;
+  rootTaskId?: string;
 
   // Status
   status: 'active' | 'paused' | 'completed' | 'failed';
@@ -90,8 +90,8 @@ export interface Session {
     totalActions: number;
     toolInvocations: number;
     llmRequests: number;
-    goalsCompleted: number;
-    goalsFailed: number;
+    tasksCompleted: number;
+    tasksFailed: number;
     totalCost?: number;
     screenshotCount: number;
   };
@@ -161,8 +161,8 @@ export interface TimelineEntry {
   screenshotUrl?: string;
 
   // Related data
-  goalId?: string;
-  goalTitle?: string;
+  taskId?: string;
+  taskTitle?: string;
   actionId: string;
 
   // User-friendly details
@@ -176,7 +176,7 @@ export interface TimelineEntry {
 export interface HistoryQuery {
   sessionId?: string;
   agentId?: string;
-  goalId?: string;
+  taskId?: string;
   type?: ActionType | ActionType[];
   status?: ActionStatus | ActionStatus[];
   startDate?: Date;
@@ -191,7 +191,7 @@ export interface HistoryQuery {
  */
 export interface SessionExport {
   session: Session;
-  goals: Goal[];
+  tasks: Task[];
   actions: ActionRecord[];
   screenshots: Screenshot[];
   timeline: TimelineEntry[];

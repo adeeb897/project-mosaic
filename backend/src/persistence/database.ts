@@ -1,6 +1,6 @@
 /**
  * SQLite Database Service
- * Handles all persistence for agents, goals, sessions, and memory
+ * Handles all persistence for agents, tasks, sessions, and memory
  */
 
 import Database from 'better-sqlite3';
@@ -38,35 +38,36 @@ export class DatabaseService {
         status TEXT NOT NULL,
         config TEXT NOT NULL,
         metadata TEXT,
-        root_goal TEXT,
+        root_task TEXT,
         session_id TEXT,
         created_at INTEGER NOT NULL,
         updated_at INTEGER NOT NULL
       )
     `);
 
-    // Create goals table
+    // Create tasks table
     this.db.exec(`
-      CREATE TABLE IF NOT EXISTS goals (
+      CREATE TABLE IF NOT EXISTS tasks (
         id TEXT PRIMARY KEY,
         title TEXT NOT NULL,
         description TEXT,
         status TEXT NOT NULL,
         priority TEXT NOT NULL,
-        parent_goal_id TEXT,
-        child_goal_ids TEXT,
+        parent_task_id TEXT,
+        child_task_ids TEXT,
         created_by TEXT NOT NULL,
         assigned_to TEXT,
         agent_id TEXT,
         session_id TEXT,
         metadata TEXT,
+        tags TEXT,
         started_at INTEGER,
         completed_at INTEGER,
         deadline INTEGER,
         estimated_duration INTEGER,
         created_at INTEGER NOT NULL,
         updated_at INTEGER NOT NULL,
-        FOREIGN KEY (parent_goal_id) REFERENCES goals(id) ON DELETE CASCADE,
+        FOREIGN KEY (parent_task_id) REFERENCES tasks(id) ON DELETE CASCADE,
         FOREIGN KEY (agent_id) REFERENCES agents(id) ON DELETE SET NULL
       )
     `);
@@ -77,7 +78,7 @@ export class DatabaseService {
         id TEXT PRIMARY KEY,
         name TEXT NOT NULL,
         agent_ids TEXT NOT NULL,
-        goal_ids TEXT NOT NULL,
+        task_ids TEXT NOT NULL,
         metadata TEXT,
         created_at INTEGER NOT NULL,
         ended_at INTEGER
@@ -90,7 +91,7 @@ export class DatabaseService {
         id TEXT PRIMARY KEY,
         session_id TEXT NOT NULL,
         agent_id TEXT NOT NULL,
-        goal_id TEXT,
+        task_id TEXT,
         type TEXT NOT NULL,
         status TEXT NOT NULL,
         action TEXT NOT NULL,
@@ -138,22 +139,22 @@ export class DatabaseService {
         content TEXT NOT NULL,
         metadata TEXT,
         tags TEXT,
-        related_goal_id TEXT,
+        related_task_id TEXT,
         created_at INTEGER NOT NULL,
         updated_at INTEGER NOT NULL,
         expires_at INTEGER,
         FOREIGN KEY (agent_id) REFERENCES agents(id) ON DELETE CASCADE,
         FOREIGN KEY (session_id) REFERENCES sessions(id) ON DELETE CASCADE,
-        FOREIGN KEY (related_goal_id) REFERENCES goals(id) ON DELETE SET NULL
+        FOREIGN KEY (related_task_id) REFERENCES tasks(id) ON DELETE SET NULL
       )
     `);
 
     // Create indices for better query performance
     this.db.exec(`
-      CREATE INDEX IF NOT EXISTS idx_goals_agent_id ON goals(agent_id);
-      CREATE INDEX IF NOT EXISTS idx_goals_session_id ON goals(session_id);
-      CREATE INDEX IF NOT EXISTS idx_goals_status ON goals(status);
-      CREATE INDEX IF NOT EXISTS idx_goals_parent ON goals(parent_goal_id);
+      CREATE INDEX IF NOT EXISTS idx_tasks_agent_id ON tasks(agent_id);
+      CREATE INDEX IF NOT EXISTS idx_tasks_session_id ON tasks(session_id);
+      CREATE INDEX IF NOT EXISTS idx_tasks_status ON tasks(status);
+      CREATE INDEX IF NOT EXISTS idx_tasks_parent ON tasks(parent_task_id);
 
       CREATE INDEX IF NOT EXISTS idx_actions_session ON action_records(session_id);
       CREATE INDEX IF NOT EXISTS idx_actions_agent ON action_records(agent_id);
@@ -163,7 +164,7 @@ export class DatabaseService {
       CREATE INDEX IF NOT EXISTS idx_memory_session ON memory_entries(session_id);
       CREATE INDEX IF NOT EXISTS idx_memory_type ON memory_entries(type);
       CREATE INDEX IF NOT EXISTS idx_memory_importance ON memory_entries(importance);
-      CREATE INDEX IF NOT EXISTS idx_memory_goal ON memory_entries(related_goal_id);
+      CREATE INDEX IF NOT EXISTS idx_memory_task ON memory_entries(related_task_id);
     `);
 
     this.initialized = true;

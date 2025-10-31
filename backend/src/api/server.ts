@@ -7,17 +7,15 @@ import cors from 'cors';
 import { createServer } from 'http';
 import { Server as SocketIOServer } from 'socket.io';
 import { EventBus } from '../core/event-bus';
-import { GoalManager } from '../services/goal/goal-manager.service';
+import { TaskManager } from '../services/task/task-manager.service';
 import { SessionManager } from '../services/session/session-manager.service';
 import { MemoryManager } from '../services/memory/memory-manager.service';
 import { LLMProviderPlugin, MCPServerPlugin } from '@mosaic/shared';
 import { createAgentRoutes } from './routes/agent.routes';
-import { createGoalRoutes } from './routes/goal.routes';
+import { createTaskRoutes } from './routes/task.routes';
 import { createSessionRoutes } from './routes/session.routes';
 import { createMemoryRoutes } from './routes/memory.routes';
-import { createScreenshotRoutes } from './routes/screenshot.routes';
 import { logger } from '../core/logger';
-import * as path from 'path';
 
 export interface ServerConfig {
   port?: number;
@@ -31,7 +29,7 @@ export class APIServer {
   private httpServer: ReturnType<typeof createServer>;
   private io: SocketIOServer;
   private eventBus: EventBus;
-  private goalManager: GoalManager;
+  private taskManager: TaskManager;
   private sessionManager: SessionManager;
   private memoryManager: MemoryManager;
   private llmProvider: LLMProviderPlugin;
@@ -40,7 +38,7 @@ export class APIServer {
 
   constructor(
     eventBus: EventBus,
-    goalManager: GoalManager,
+    taskManager: TaskManager,
     sessionManager: SessionManager,
     memoryManager: MemoryManager,
     llmProvider: LLMProviderPlugin,
@@ -48,7 +46,7 @@ export class APIServer {
     config: ServerConfig = {}
   ) {
     this.eventBus = eventBus;
-    this.goalManager = goalManager;
+    this.taskManager = taskManager;
     this.sessionManager = sessionManager;
     this.memoryManager = memoryManager;
     this.llmProvider = llmProvider;
@@ -104,18 +102,14 @@ export class APIServer {
 
     // API routes
     this.app.use('/api/agents', createAgentRoutes(
-      this.goalManager,
+      this.taskManager,
       this.sessionManager,
       this.llmProvider,
       this.mcpServers
     ));
-    this.app.use('/api/goals', createGoalRoutes(this.goalManager));
+    this.app.use('/api/tasks', createTaskRoutes(this.taskManager));
     this.app.use('/api/sessions', createSessionRoutes(this.sessionManager));
     this.app.use('/api', createMemoryRoutes(this.memoryManager));
-
-    // Screenshots route
-    const screenshotsDir = path.resolve(process.cwd(), 'storage', 'screenshots');
-    this.app.use('/api/screenshots', createScreenshotRoutes(screenshotsDir));
 
     // 404 handler
     this.app.use((req, res) => {
@@ -155,16 +149,16 @@ export class APIServer {
       // Subscribe to all events and forward to clients
       const unsubscribers: Array<() => void> = [];
 
-      // Goal events
+      // Task events
       unsubscribers.push(
-        this.eventBus.subscribe('goal.created', (event) => {
-          socket.emit('goal:created', event.data);
+        this.eventBus.subscribe('task.created', (event) => {
+          socket.emit('task:created', event.data);
         })
       );
 
       unsubscribers.push(
-        this.eventBus.subscribe('goal.updated', (event) => {
-          socket.emit('goal:updated', event.data);
+        this.eventBus.subscribe('task.updated', (event) => {
+          socket.emit('task:updated', event.data);
         })
       );
 

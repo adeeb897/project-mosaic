@@ -92,12 +92,12 @@ export function createSessionRoutes(sessionManager: SessionManager) {
    */
   router.get('/:id/actions', async (req, res) => {
     try {
-      const { agentId, goalId, type, status, limit, offset } = req.query;
+      const { agentId, taskId, type, status, limit, offset } = req.query;
 
       const actions = sessionManager.queryActions({
         sessionId: req.params.id,
         agentId: agentId as string,
-        goalId: goalId as string,
+        taskId: taskId as string,
         type: type as any,
         status: status as any,
         limit: limit ? parseInt(limit as string) : undefined,

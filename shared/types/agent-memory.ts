@@ -10,7 +10,7 @@
  * Memory entry types
  */
 export type MemoryType =
-  | 'plan'           // Strategic plans and decomposed goals
+  | 'plan'           // Strategic plans and decomposed tasks
   | 'thought'        // Reasoning and decision-making notes
   | 'learning'       // Lessons learned, patterns discovered
   | 'context'        // Important context about the task
@@ -35,7 +35,7 @@ export interface MemoryEntry {
   content: string;
   metadata?: Record<string, any>;
   tags?: string[];
-  relatedGoalId?: string;
+  relatedTaskId?: string;
   createdAt: Date;
   updatedAt: Date;
   expiresAt?: Date; // For temporary memories
@@ -51,7 +51,7 @@ export interface CreateMemoryRequest {
   content: string;
   metadata?: Record<string, any>;
   tags?: string[];
-  relatedGoalId?: string;
+  relatedTaskId?: string;
   expiresAt?: Date;
 }
 
@@ -77,7 +77,7 @@ export interface MemoryQuery {
   type?: MemoryType;
   importance?: MemoryImportance;
   tags?: string[];
-  relatedGoalId?: string;
+  relatedTaskId?: string;
   search?: string; // Text search in title/content
   limit?: number;
   offset?: number;
@@ -89,7 +89,7 @@ export interface MemoryQuery {
 export interface AgentMemorySnapshot {
   agentId: string;
   sessionId: string;
-  currentGoalId?: string;
+  currentTaskId?: string;
   plans: MemoryEntry[];
   thoughts: MemoryEntry[];
   learnings: MemoryEntry[];

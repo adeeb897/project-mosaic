@@ -1,32 +1,32 @@
 # Project Mosaic Admin Dashboard
 
-A user-friendly web interface for creating autonomous AI agents, assigning high-level goals, and tracking their activity in real-time.
+A user-friendly web interface for creating autonomous AI agents, assigning high-level tasks, and tracking their activity in real-time.
 
 ## Features
 
 ### 1. Agent Management
-- **Create Agents**: Simple form with name and high-level goal
+- **Create Agents**: Simple form with name and high-level task
 - **Monitor Status**: See which agents are running, idle, or stopped
 - **Start/Stop Control**: Full control over agent execution
 - **Session Tracking**: Each agent has its own session for activity tracking
 
-### 2. Goal Management
-- **Create Goals**: Define individual or shared goals
-- **Goal Statistics**: View completion rates, priorities, and status
-- **Filter & Search**: Find goals by status, priority, or assigned agent
+### 2. Task Management
+- **Create Tasks**: Define individual or shared tasks
+- **Task Statistics**: View completion rates, priorities, and status
+- **Filter & Search**: Find tasks by status, priority, or assigned agent
 - **Priority Levels**: Critical, High, Medium, Low
 
 ### 3. Activity Timeline
 - **Live Feed**: Real-time updates of agent actions
 - **User-Friendly**: Plain English descriptions of what agents are doing
 - **Screenshots**: Visual proof of browser actions
-- **Filtering**: View all events, goals only, tool usage, or errors
+- **Filtering**: View all events, tasks only, tool usage, or errors
 
-### 4. Goal Tree Visualization
-- **Hierarchy View**: See how complex goals break down into sub-goals
+### 4. Task Tree Visualization
+- **Hierarchy View**: See how complex tasks break down into sub-tasks
 - **Interactive**: Expand/collapse nodes to explore the tree
-- **Status Indicators**: Visual feedback for each goal's status
-- **Strategy Display**: View the reasoning behind goal decomposition
+- **Status Indicators**: Visual feedback for each task's status
+- **Strategy Display**: View the reasoning behind task decomposition
 
 ## Getting Started
 
@@ -115,7 +115,7 @@ The dashboard will open on `http://localhost:3001`
 
 1. Click the **"Create Agent"** button in the Agents tab
 2. Enter an agent name (e.g., "ResearchAgent")
-3. Describe your goal in plain English:
+3. Describe your task in plain English:
    - ✅ Good: "Research renewable energy solutions and create a comprehensive report"
    - ✅ Good: "Find the top 5 climate change initiatives and summarize their impact"
    - ❌ Too technical: "Call the API endpoint and parse JSON"
@@ -129,7 +129,7 @@ The dashboard will open on `http://localhost:3001`
 **Activity Timeline Tab:**
 - Switch to the "Activity" tab
 - You'll see a live feed of everything the agent is doing:
-  - 🎯 Goal milestones
+  - 🎯 Task milestones
   - 🛠️ Tool usage (file operations, web browsing, etc.)
   - 🌐 Browser navigation
   - ✅ Completed tasks
@@ -138,7 +138,7 @@ The dashboard will open on `http://localhost:3001`
 **Example Timeline:**
 ```
 🎯 [10:30:15] Started working on: Research renewable energy...
-   Goal: Research renewable energy solutions
+   Task: Research renewable energy solutions
 
 🛠️ [10:30:18] Used filesystem.write_file: Creating research plan
    Status: completed
@@ -150,14 +150,14 @@ The dashboard will open on `http://localhost:3001`
    [Preview image shown]
 
 ✅ [10:31:02] Completed: Gather background information
-   Goal: Research current technologies
+   Task: Research current technologies
 ```
 
-### Understanding Goal Hierarchies
+### Understanding Task Hierarchies
 
-**Goal Tree Tab:**
-- Shows how complex goals are broken down
-- Each node represents a goal or sub-goal
+**Task Tree Tab:**
+- Shows how complex tasks are broken down
+- Each node represents a task or sub-task
 - Colors indicate priority (red = critical, yellow = medium)
 - Icons show status (✅ = done, ⏳ = in progress)
 
@@ -175,16 +175,16 @@ The dashboard will open on `http://localhost:3001`
    └── ⏸️  Write comprehensive report [pending]
 ```
 
-### Creating Shared Goals
+### Creating Shared Tasks
 
-1. Go to the **"Goals"** tab
-2. Click **"Create Goal"**
+1. Go to the **"Tasks"** tab
+2. Click **"Create Task"**
 3. Fill in:
    - **Title**: What needs to be accomplished
    - **Description**: More details
    - **Priority**: How urgent is this?
 
-4. The goal will be visible to all agents
+4. The task will be visible to all agents
 5. You can later assign it to a specific agent
 
 ## Architecture
@@ -198,12 +198,12 @@ backend/
 │   │   ├── server.ts              # Express + Socket.IO server
 │   │   └── routes/
 │   │       ├── agent.routes.ts    # Agent CRUD + control
-│   │       ├── goal.routes.ts     # Goal management
+│   │       ├── task.routes.ts     # Task management
 │   │       └── session.routes.ts  # History & timeline
 │   ├── agents/
-│   │   └── goal-oriented-agent.ts # Autonomous agent
+│   │   └── task-oriented-agent.ts # Autonomous agent
 │   └── services/
-│       ├── goal-manager.service.ts    # Goal hierarchy
+│       ├── task-manager.service.ts    # Task hierarchy
 │       └── session-manager.service.ts # Action recording
 ```
 
@@ -217,9 +217,9 @@ frontend/
 │   │   └── layout.tsx      # App layout
 │   ├── components/
 │   │   ├── AgentManager.tsx    # Create & manage agents
-│   │   ├── GoalManager.tsx     # Create & view goals
+│   │   ├── TaskManager.tsx     # Create & view tasks
 │   │   ├── ActivityTimeline.tsx # Live activity feed
-│   │   └── GoalTree.tsx        # Hierarchy visualization
+│   │   └── TaskTree.tsx        # Hierarchy visualization
 │   └── hooks/
 │       └── useWebSocket.ts # Real-time event updates
 ```
@@ -229,7 +229,7 @@ frontend/
 The dashboard uses **WebSocket** (Socket.IO) for live updates:
 
 **Events Streamed:**
-- `goal:created`, `goal:updated` - Goal changes
+- `task:created`, `task:updated` - Task changes
 - `agent:started`, `agent:stopped`, `agent:progress` - Agent lifecycle
 - `action:recorded`, `action:completed` - Every action taken
 - `screenshot:captured` - Browser screenshots
@@ -244,7 +244,7 @@ GET /api/agents
 
 # Create agent
 POST /api/agents
-Body: { name, rootGoal, sessionId?, maxDepth? }
+Body: { name, rootTask, sessionId?, maxDepth? }
 
 # Get agent details
 GET /api/agents/:id
@@ -259,26 +259,26 @@ POST /api/agents/:id/stop
 DELETE /api/agents/:id
 ```
 
-### Goal Endpoints
+### Task Endpoints
 
 ```bash
-# Query goals
-GET /api/goals?status=in_progress&priority=high
+# Query tasks
+GET /api/tasks?status=in_progress&priority=high
 
-# Create goal
-POST /api/goals
+# Create task
+POST /api/tasks
 Body: { title, description, priority, createdBy }
 
-# Get goal tree
-GET /api/goals/:id/tree
+# Get task tree
+GET /api/tasks/:id/tree
 
-# Update goal
-PATCH /api/goals/:id
+# Update task
+PATCH /api/tasks/:id
 Body: { status?, assignedTo?, result? }
 
-# Decompose goal
-POST /api/goals/:id/decompose
-Body: { reasoning, subGoals[] }
+# Decompose task
+POST /api/tasks/:id/decompose
+Body: { reasoning, subTasks[] }
 ```
 
 ### Session Endpoints
@@ -333,15 +333,15 @@ GET /api/sessions/:id/export
 
 1. **Be Specific**: Instead of "research climate change", try "research the top 5 climate change solutions being implemented in 2024"
 
-2. **Start Simple**: Create an agent with a simple goal first to understand the system
+2. **Start Simple**: Create an agent with a simple task first to understand the system
 
 3. **Monitor Progress**: Keep the Activity Timeline open to see what your agents are doing
 
-4. **Use Priorities**: Mark urgent goals as "high" or "critical"
+4. **Use Priorities**: Mark urgent tasks as "high" or "critical"
 
 ### For Developers
 
-1. **Custom Agents**: Create specialized agents by extending `GoalOrientedAgent`
+1. **Custom Agents**: Create specialized agents by extending `TaskOrientedAgent`
 
 2. **Custom Tools**: Add new MCP servers to provide more capabilities
 
@@ -352,9 +352,9 @@ GET /api/sessions/:id/export
 ## Next Steps
 
 - **Add More Tools**: Browser automation, API calls, data analysis
-- **Multi-Agent Coordination**: Agents working together on shared goals
+- **Multi-Agent Coordination**: Agents working together on shared tasks
 - **Cost Tracking**: Monitor LLM usage and costs
-- **Notifications**: Email/Slack alerts for goal completion
+- **Notifications**: Email/Slack alerts for task completion
 - **Analytics**: Performance metrics and insights
 
 ## Support

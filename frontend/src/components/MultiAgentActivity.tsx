@@ -4,14 +4,14 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { formatDistanceToNow, format, startOfDay, endOfDay, isSameDay, addDays, subDays } from 'date-fns';
+import { useRouter, useSearchParams } from 'next/navigation';
+import { formatDistanceToNow, format, isSameDay, addDays, subDays } from 'date-fns';
 import axios from 'axios';
 import { RealtimeEvent } from '@/hooks/useWebSocket';
 import { getApiUrl } from '@/config/api';
 import {
   Activity,
   Bot,
-  MessageSquare,
   Wrench,
   Target,
   AlertCircle,
@@ -22,7 +22,7 @@ import {
   ChevronDown,
   ChevronRight,
   ChevronLeft,
-  Calendar
+  Calendar,
 } from 'lucide-react';
 
 interface ActionRecord {
@@ -36,8 +36,9 @@ interface ActionRecord {
     tool?: string;
     reasoning?: string;
     metadata?: any;
-    parameters?: any;
+    params?: any;
     result?: any;
+    screenshotUrl?: string;
   };
 }
 
@@ -49,19 +50,41 @@ interface AgentInfo {
 
 interface MultiAgentActivityProps {
   realtimeEvents: RealtimeEvent[];
+  initialAgentId?: string;
+  initialTaskId?: string;
 }
 
-export function MultiAgentActivity({ realtimeEvents }: MultiAgentActivityProps) {
+export function MultiAgentActivity({ realtimeEvents, initialAgentId, initialTaskId }: MultiAgentActivityProps) {
+  const router = useRouter();
+  const searchParams = useSearchParams();
   const [actions, setActions] = useState<ActionRecord[]>([]);
   const [agents, setAgents] = useState<Map<string, AgentInfo>>(new Map());
-  const [filter, setFilter] = useState<'all' | 'messages' | 'tools' | 'goals'>('all');
+  const [filter, setFilter] = useState<'all' | 'messages' | 'tools' | 'tasks'>('all');
   const [selectedAgentId, setSelectedAgentId] = useState<string | null>(null);
-  const [selectedGoalId, setSelectedGoalId] = useState<string | null>(null);
+  const [selectedTaskId, setSelectedTaskId] = useState<string | null>(null);
   const [selectedDate, setSelectedDate] = useState<Date>(new Date());
   const [expandedToolUses, setExpandedToolUses] = useState<Set<string>>(new Set());
   const [loading, setLoading] = useState(true);
   const [autoRefresh, setAutoRefresh] = useState(true);
   const [showDatePicker, setShowDatePicker] = useState(false);
+
+  // Update URL when filters change
+  const updateURL = (agentId: string | null, taskId: string | null) => {
+    const params = new URLSearchParams({ tab: 'activity' });
+    if (agentId) params.set('agentId', agentId);
+    if (taskId) params.set('taskId', taskId);
+    router.push(`/?${params.toString()}`, { scroll: false });
+  };
+
+  // Set initial filters from URL params
+  useEffect(() => {
+    if (initialAgentId) {
+      setSelectedAgentId(initialAgentId);
+    }
+    if (initialTaskId) {
+      setSelectedTaskId(initialTaskId);
+    }
+  }, [initialAgentId, initialTaskId]);
 
   useEffect(() => {
     fetchAgents();
@@ -118,12 +141,7 @@ export function MultiAgentActivity({ realtimeEvents }: MultiAgentActivityProps) 
               type: entry.type,
               status: entry.status,
               action: entry.summary || entry.description || entry.title,
-              details: {
-                ...details,
-                tool: details.tool || details.toolName,
-                parameters: details.parameters || details.params || details.input,
-                result: details.result || details.output || details.response,
-              },
+              details,
             };
           });
 
@@ -140,21 +158,6 @@ export function MultiAgentActivity({ realtimeEvents }: MultiAgentActivityProps) 
       console.error('Failed to fetch activity:', error);
     } finally {
       setLoading(false);
-    }
-  };
-
-  const getIcon = (type: string) => {
-    switch (type) {
-      case 'agent_message':
-        return <MessageSquare size={16} className="text-blue-600" />;
-      case 'tool_invoked':
-        return <Wrench size={16} className="text-purple-600" />;
-      case 'goal_started':
-      case 'goal_completed':
-      case 'goal_failed':
-        return <Target size={16} className="text-green-600" />;
-      default:
-        return <Activity size={16} className="text-gray-600" />;
     }
   };
 
@@ -218,14 +221,14 @@ export function MultiAgentActivity({ realtimeEvents }: MultiAgentActivityProps) 
     if (filter !== 'all') {
       if (filter === 'messages' && action.type !== 'agent_message') return false;
       if (filter === 'tools' && action.type !== 'tool_invoked') return false;
-      if (filter === 'goals' && !action.type.includes('goal')) return false;
+      if (filter === 'tasks' && !action.type.includes('task')) return false;
     }
 
     // Filter by agent
     if (selectedAgentId && action.agentId !== selectedAgentId) return false;
 
-    // Filter by goal
-    if (selectedGoalId && action.details?.metadata?.goalId !== selectedGoalId) return false;
+    // Filter by task
+    if (selectedTaskId && action.details?.metadata?.taskId !== selectedTaskId) return false;
 
     return true;
   });
@@ -259,9 +262,7 @@ export function MultiAgentActivity({ realtimeEvents }: MultiAgentActivityProps) 
             </div>
             <div>
               <h2 className="text-2xl font-bold text-gray-900">Multi-Agent Activity</h2>
-              <p className="text-gray-600 mt-1">
-                Live feed of all agent actions
-              </p>
+              <p className="text-gray-600 mt-1">Live feed of all agent actions</p>
             </div>
           </div>
 
@@ -305,9 +306,7 @@ export function MultiAgentActivity({ realtimeEvents }: MultiAgentActivityProps) 
                 onClick={goToNextDay}
                 disabled={isToday}
                 className={`p-2 rounded-lg transition-colors ${
-                  isToday
-                    ? 'text-gray-300 cursor-not-allowed'
-                    : 'hover:bg-gray-100 text-gray-700'
+                  isToday ? 'text-gray-300 cursor-not-allowed' : 'hover:bg-gray-100 text-gray-700'
                 }`}
                 title="Next day"
               >
@@ -349,7 +348,7 @@ export function MultiAgentActivity({ realtimeEvents }: MultiAgentActivityProps) 
           <div className="flex items-center gap-2">
             <Filter size={16} className="text-gray-600" />
             <span className="text-sm font-semibold text-gray-700 mr-2">Type:</span>
-            {(['all', 'messages', 'tools', 'goals'] as const).map((filterType) => (
+            {(['all', 'messages', 'tools', 'tasks'] as const).map((filterType) => (
               <button
                 key={filterType}
                 onClick={() => setFilter(filterType)}
@@ -364,7 +363,7 @@ export function MultiAgentActivity({ realtimeEvents }: MultiAgentActivityProps) 
             ))}
           </div>
 
-          {/* Agent and Goal Filters */}
+          {/* Agent and Task Filters */}
           <div className="flex items-center gap-4">
             {/* Agent Filter */}
             <div className="flex items-center gap-2">
@@ -372,7 +371,11 @@ export function MultiAgentActivity({ realtimeEvents }: MultiAgentActivityProps) 
               <span className="text-sm font-semibold text-gray-700">Agent:</span>
               <select
                 value={selectedAgentId || ''}
-                onChange={(e) => setSelectedAgentId(e.target.value || null)}
+                onChange={(e) => {
+                  const newAgentId = e.target.value || null;
+                  setSelectedAgentId(newAgentId);
+                  updateURL(newAgentId, selectedTaskId);
+                }}
                 className="px-3 py-1.5 rounded-lg text-sm font-medium bg-white border border-gray-200 text-gray-700 focus:outline-none focus:ring-2 focus:ring-purple-400"
               >
                 <option value="">All Agents</option>
@@ -384,25 +387,30 @@ export function MultiAgentActivity({ realtimeEvents }: MultiAgentActivityProps) 
               </select>
             </div>
 
-            {/* Goal Filter */}
+            {/* Task Filter */}
             <div className="flex items-center gap-2">
               <Target size={16} className="text-gray-600" />
-              <span className="text-sm font-semibold text-gray-700">Goal:</span>
+              <span className="text-sm font-semibold text-gray-700">Task:</span>
               <input
                 type="text"
-                placeholder="Goal ID (optional)"
-                value={selectedGoalId || ''}
-                onChange={(e) => setSelectedGoalId(e.target.value || null)}
+                placeholder="Task ID (optional)"
+                value={selectedTaskId || ''}
+                onChange={(e) => {
+                  const newTaskId = e.target.value || null;
+                  setSelectedTaskId(newTaskId);
+                  updateURL(selectedAgentId, newTaskId);
+                }}
                 className="px-3 py-1.5 rounded-lg text-sm font-medium bg-white border border-gray-200 text-gray-700 focus:outline-none focus:ring-2 focus:ring-purple-400 w-48"
               />
             </div>
 
             {/* Clear Filters */}
-            {(selectedAgentId || selectedGoalId) && (
+            {(selectedAgentId || selectedTaskId) && (
               <button
                 onClick={() => {
                   setSelectedAgentId(null);
-                  setSelectedGoalId(null);
+                  setSelectedTaskId(null);
+                  updateURL(null, null);
                 }}
                 className="px-3 py-1.5 rounded-lg text-sm font-medium bg-red-50 text-red-600 hover:bg-red-100 transition-colors"
               >
@@ -437,7 +445,9 @@ export function MultiAgentActivity({ realtimeEvents }: MultiAgentActivityProps) 
               >
                 {/* Agent Avatar */}
                 <div className="flex-shrink-0">
-                  <div className={`w-8 h-8 rounded-lg bg-gradient-to-br ${getAgentColor(action.agentId)} flex items-center justify-center shadow-sm`}>
+                  <div
+                    className={`w-8 h-8 rounded-lg bg-gradient-to-br ${getAgentColor(action.agentId)} flex items-center justify-center shadow-sm`}
+                  >
                     <Bot size={16} className="text-white" />
                   </div>
                 </div>
@@ -457,9 +467,7 @@ export function MultiAgentActivity({ realtimeEvents }: MultiAgentActivityProps) 
 
                   {/* Message Body - Compact */}
                   <div className="space-y-1">
-                    <p className="text-sm text-gray-800 leading-snug">
-                      {action.action}
-                    </p>
+                    <p className="text-sm text-gray-800 leading-snug">{action.action}</p>
 
                     {/* Reasoning - More compact */}
                     {action.details?.reasoning && (
@@ -476,20 +484,18 @@ export function MultiAgentActivity({ realtimeEvents }: MultiAgentActivityProps) 
                           className="flex items-center gap-1.5 text-xs font-medium text-gray-600 hover:text-gray-900 bg-white/80 px-2 py-1 rounded border border-gray-200 hover:border-gray-300 transition-all"
                         >
                           <Wrench size={12} />
-                          <span className="font-mono">
-                            {action.details.tool}
-                          </span>
+                          <span className="font-mono">{action.details.tool}</span>
                           {isExpanded ? <ChevronDown size={12} /> : <ChevronRight size={12} />}
                         </button>
 
                         {isExpanded && (
                           <div className="mt-2 bg-white/90 rounded border border-gray-200 p-2 space-y-2">
                             {/* Parameters */}
-                            {action.details.parameters && (
+                            {action.details.params && (
                               <div>
                                 <p className="text-xs font-semibold text-gray-600 mb-1">Input:</p>
                                 <pre className="text-xs bg-gray-50 p-1.5 rounded border border-gray-200 overflow-x-auto max-h-32">
-{JSON.stringify(action.details.parameters, null, 2)}
+                                  {JSON.stringify(action.details.params, null, 2)}
                                 </pre>
                               </div>
                             )}
@@ -498,18 +504,18 @@ export function MultiAgentActivity({ realtimeEvents }: MultiAgentActivityProps) 
                             {action.details.result && (
                               <div>
                                 <p className="text-xs font-semibold text-gray-600 mb-1 flex items-center gap-1">
-                                  {action.status === 'completed' ? (
-                                    <>✓ Output:</>
-                                  ) : (
-                                    <>✗ Error:</>
-                                  )}
+                                  {action.status === 'completed' ? <>✓ Output:</> : <>✗ Error:</>}
                                 </p>
-                                <pre className={`text-xs p-1.5 rounded border overflow-x-auto max-h-32 ${
-                                  action.status === 'completed'
-                                    ? 'bg-green-50 border-green-200 text-green-900'
-                                    : 'bg-red-50 border-red-200 text-red-900'
-                                }`}>
-{typeof action.details.result === 'string' ? action.details.result : JSON.stringify(action.details.result, null, 2)}
+                                <pre
+                                  className={`text-xs p-1.5 rounded border overflow-x-auto max-h-32 ${
+                                    action.status === 'completed'
+                                      ? 'bg-green-50 border-green-200 text-green-900'
+                                      : 'bg-red-50 border-red-200 text-red-900'
+                                  }`}
+                                >
+                                  {typeof action.details.result === 'string'
+                                    ? action.details.result
+                                    : JSON.stringify(action.details.result, null, 2)}
                                 </pre>
                               </div>
                             )}
@@ -517,6 +523,37 @@ export function MultiAgentActivity({ realtimeEvents }: MultiAgentActivityProps) 
                         )}
                       </div>
                     )}
+
+                    {/* Browser Screenshot - if any */}
+                    {(() => {
+                      if (action.details?.result?.data?.screenshot?.base64) {
+                        const screenshot = action.details.result.data.screenshot;
+                        return (
+                          <div className="mt-2 bg-white/90 rounded-lg border border-gray-200 p-2">
+                            <div className="flex items-center gap-2 mb-2">
+                              <div className="text-xs font-semibold text-gray-600">
+                                Screenshot from {action.details.tool}
+                              </div>
+                              {screenshot.url && (
+                                <div className="text-xs text-gray-500 truncate max-w-xs">
+                                  {screenshot.url}
+                                </div>
+                              )}
+                            </div>
+                            <img
+                              src={`data:image/png;base64,${screenshot.base64}`}
+                              alt="Browser Screenshot"
+                              className="w-full max-w-2xl h-auto rounded border border-gray-300 shadow-sm cursor-pointer hover:shadow-md transition-shadow"
+                              onClick={(e) => {
+                                // Open in new tab on click
+                                window.open((e.target as HTMLImageElement).src, '_blank');
+                              }}
+                            />
+                          </div>
+                        );
+                      }
+                      return null;
+                    })()}
                   </div>
                 </div>
               </div>

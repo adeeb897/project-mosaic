@@ -156,7 +156,7 @@ export class MemoryManagerService {
     content: string,
     options?: {
       importance?: MemoryImportance;
-      relatedGoalId?: string;
+      relatedTaskId?: string;
       metadata?: Record<string, unknown>;
     }
   ): Promise<MemoryEntry> {
@@ -165,7 +165,7 @@ export class MemoryManagerService {
       importance: options?.importance || 'high',
       title,
       content,
-      relatedGoalId: options?.relatedGoalId,
+      relatedTaskId: options?.relatedTaskId,
       metadata: options?.metadata,
     });
   }
@@ -180,7 +180,7 @@ export class MemoryManagerService {
     content: string,
     options?: {
       importance?: MemoryImportance;
-      relatedGoalId?: string;
+      relatedTaskId?: string;
       metadata?: Record<string, unknown>;
     }
   ): Promise<MemoryEntry> {
@@ -189,7 +189,7 @@ export class MemoryManagerService {
       importance: options?.importance || 'medium',
       title,
       content,
-      relatedGoalId: options?.relatedGoalId,
+      relatedTaskId: options?.relatedTaskId,
       metadata: options?.metadata,
     });
   }
@@ -228,7 +228,7 @@ export class MemoryManagerService {
     content: string,
     options?: {
       importance?: MemoryImportance;
-      relatedGoalId?: string;
+      relatedTaskId?: string;
       expiresAt?: Date;
       metadata?: Record<string, unknown>;
     }
@@ -238,7 +238,7 @@ export class MemoryManagerService {
       importance: options?.importance || 'medium',
       title,
       content,
-      relatedGoalId: options?.relatedGoalId,
+      relatedTaskId: options?.relatedTaskId,
       expiresAt: options?.expiresAt,
       metadata: options?.metadata,
     });
@@ -253,7 +253,7 @@ export class MemoryManagerService {
     title: string,
     content: string,
     options?: {
-      relatedGoalId?: string;
+      relatedTaskId?: string;
       metadata?: Record<string, unknown>;
     }
   ): Promise<MemoryEntry> {
@@ -262,7 +262,7 @@ export class MemoryManagerService {
       importance: 'critical',
       title,
       content,
-      relatedGoalId: options?.relatedGoalId,
+      relatedTaskId: options?.relatedTaskId,
       metadata: options?.metadata,
     });
   }
@@ -277,7 +277,7 @@ export class MemoryManagerService {
     content: string,
     options?: {
       importance?: MemoryImportance;
-      relatedGoalId?: string;
+      relatedTaskId?: string;
       tags?: string[];
       metadata?: Record<string, unknown>;
     }
@@ -287,7 +287,7 @@ export class MemoryManagerService {
       importance: options?.importance || 'low',
       title,
       content,
-      relatedGoalId: options?.relatedGoalId,
+      relatedTaskId: options?.relatedTaskId,
       tags: options?.tags,
       metadata: options?.metadata,
     });
@@ -329,10 +329,10 @@ export class MemoryManagerService {
   }
 
   /**
-   * Get memories related to a goal
+   * Get memories related to a task
    */
-  async getGoalMemories(goalId: string, limit?: number): Promise<MemoryEntry[]> {
-    return this.memoryRepo.query({ relatedGoalId: goalId, limit });
+  async getTaskMemories(taskId: string, limit?: number): Promise<MemoryEntry[]> {
+    return this.memoryRepo.query({ relatedTaskId: taskId, limit });
   }
 
   /**

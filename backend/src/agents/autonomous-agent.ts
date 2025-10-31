@@ -1,9 +1,9 @@
 /**
- * Autonomous Agent - User-friendly, goal-oriented agent
+ * Autonomous Agent - User-friendly, task-oriented agent
  *
  * Key Features:
- * - Accepts high-level goals in natural language
- * - Breaks down goals into steps autonomously
+ * - Accepts high-level tasks in natural language
+ * - Breaks down tasks into steps autonomously
  * - Self-corrects when encountering errors
  * - Communicates progress in simple terms
  */
@@ -27,7 +27,7 @@ import { v4 as uuid } from 'uuid';
 interface AutonomousAgentOptions {
   id?: string;
   name: string;
-  goal: string; // High-level goal in natural language
+  task?: string; // High-level task in natural language
   llmProvider: LLMProviderPlugin;
   mcpServers: MCPServerPlugin[];
   eventBus: EventBus;
@@ -42,7 +42,7 @@ export class AutonomousAgent implements Agent {
   config: AgentConfig;
   metadata: Record<string, any> = {};
 
-  public goal: string; // Public for external access
+  public task: string; // Public for external access
   private llmProvider: LLMProviderPlugin;
   private mcpServers: Map<string, MCPServerPlugin> = new Map();
   private eventBus: EventBus;
@@ -55,7 +55,7 @@ export class AutonomousAgent implements Agent {
   constructor(options: AutonomousAgentOptions) {
     this.id = options.id || uuid();
     this.name = options.name;
-    this.goal = options.goal;
+    this.task = options.task || 'No task provided';
     this.llmProvider = options.llmProvider;
     this.eventBus = options.eventBus;
     this.maxSteps = options.maxSteps || 20;
@@ -80,19 +80,23 @@ export class AutonomousAgent implements Agent {
       throw new Error('Agent is already running');
     }
 
+    if (this.task.trim().length === 0) {
+      throw new Error('Agent task cannot be started with an empty task');
+    }
+
     this.status = 'running';
-    this.agentLogger.info('Agent starting', { goal: this.goal });
+    this.agentLogger.info('Agent starting', { task: this.task });
 
     await this.eventBus.publish(
       'agent.started',
       createEvent('agent.started', this.id, {
         name: this.name,
-        goal: this.goal,
+        task: this.task,
       })
     );
 
     // Start autonomous execution
-    this.executeGoalAutonomously().catch((error) => {
+    this.executeTaskAutonomously().catch((error) => {
       this.agentLogger.error('Autonomous execution failed', { error });
       this.status = 'error';
     });
@@ -141,28 +145,27 @@ export class AutonomousAgent implements Agent {
   }
 
   async executeTask(task: Task): Promise<TaskResult> {
-    this.agentLogger.info('Executing task', { taskId: task.id, name: task.name });
+    this.agentLogger.info('Executing task', { taskId: task.id, name: task.title });
 
     try {
-      // Add task to goal context
-      const taskDescription = `Task: ${task.name}\nDescription: ${task.description}`;
+      // Add task to task context
+      const taskDescription = `Task: ${task.title}\nDescription: ${task.description}`;
       this.executionLog.push(`[TASK] ${taskDescription}`);
 
-      const result = await this.executeGoalAutonomously();
+      const result = await this.executeTaskAutonomously();
 
       return {
+        taskId: task.id,
         success: true,
-        output: result,
-        metadata: {
-          steps: this.currentStep,
-          log: this.executionLog,
-        },
+        result: result
       };
     } catch (error: any) {
       this.agentLogger.error('Task execution failed', { taskId: task.id, error });
       return {
+        taskId: task.id,
+        result: null,
         success: false,
-        error: error.message,
+        errorMessage: error.message,
       };
     }
   }
@@ -171,7 +174,7 @@ export class AutonomousAgent implements Agent {
     return {
       status: this.status,
       memory: {
-        goal: this.goal,
+        task: this.task,
         currentStep: this.currentStep,
         executionLog: this.executionLog,
       },
@@ -180,10 +183,10 @@ export class AutonomousAgent implements Agent {
 
   /**
    * Core autonomous execution loop
-   * Breaks down the goal and executes steps until complete
+   * Breaks down the task and executes steps until complete
    */
-  private async executeGoalAutonomously(): Promise<any> {
-    this.agentLogger.info('Starting autonomous goal execution', { goal: this.goal });
+  private async executeTaskAutonomously(): Promise<any> {
+    this.agentLogger.info('Starting autonomous task execution', { task: this.task });
 
     const tools = this.getAvailableTools();
 
@@ -211,9 +214,9 @@ export class AutonomousAgent implements Agent {
           })
         );
 
-        // Check if goal is complete
+        // Check if task is complete
         if (nextAction.complete) {
-          this.agentLogger.info('Goal completed', {
+          this.agentLogger.info('Task completed', {
             steps: this.currentStep,
             result: nextAction.result,
           });
@@ -221,7 +224,7 @@ export class AutonomousAgent implements Agent {
           await this.eventBus.publish(
             'agent.completed',
             createEvent('agent.completed', this.id, {
-              goal: this.goal,
+              task: this.task,
               steps: this.currentStep,
               result: nextAction.result,
             })
@@ -264,7 +267,7 @@ export class AutonomousAgent implements Agent {
     }
 
     if (this.currentStep >= this.maxSteps) {
-      const error = 'Maximum steps reached without completing goal';
+      const error = 'Maximum steps reached without completing task';
       this.agentLogger.warn(error);
       this.status = 'error';
       throw new Error(error);
@@ -359,17 +362,17 @@ export class AutonomousAgent implements Agent {
   }
 
   /**
-   * Build system prompt that encourages autonomous, goal-oriented behavior
+   * Build system prompt that encourages autonomous, task-oriented behavior
    */
   private buildSystemPrompt(): string {
-    return `You are an autonomous AI agent designed to help users achieve their goals.
+    return `You are an autonomous AI agent designed to help users achieve their tasks.
 
 Your key principles:
 1. **User-Friendly**: Explain your actions in simple terms that non-technical users can understand
-2. **Autonomous**: Break down complex goals into steps and execute them independently
+2. **Autonomous**: Break down complex tasks into steps and execute them independently
 3. **Self-Correcting**: When you encounter errors, figure out how to fix them and continue
 4. **Transparent**: Always explain what you're doing and why
-5. **Goal-Oriented**: Stay focused on the user's goal until it's complete
+5. **Task-Oriented**: Stay focused on the user's task until it's complete
 
 You have access to various tools to help you accomplish tasks. When planning your next action, you must respond with JSON in this format:
 
@@ -382,11 +385,11 @@ You have access to various tools to help you accomplish tasks. When planning you
   "params": { "param1": "value1" }
 }
 
-When the goal is complete, respond with:
+When the task is complete, respond with:
 {
   "thought": "Simple explanation of what you accomplished",
   "reasoning": "Summary of what was done",
-  "action": "Goal completed",
+  "action": "Task completed",
   "complete": true,
   "result": { "summary": "What was accomplished" }
 }
@@ -398,7 +401,7 @@ If you encounter an error, don't give up. Think about how to work around it or t
    * Build context prompt with current state and available tools
    */
   private buildContextPrompt(tools: any[]): string {
-    return `**Goal**: ${this.goal}
+    return `**Task**: ${this.task}
 
 **Current Step**: ${this.currentStep}/${this.maxSteps}
 
@@ -408,6 +411,6 @@ ${tools.map((t) => `- ${t.name}: ${t.description}`).join('\n')}
 **Execution Log** (what you've done so far):
 ${this.executionLog.slice(-5).join('\n') || 'Nothing yet'}
 
-What should you do next to achieve the goal? Remember to explain your actions in simple terms.`;
+What should you do next to achieve the task? Remember to explain your actions in simple terms.`;
   }
 }

@@ -12,7 +12,7 @@ interface ActionRow {
   id: string;
   session_id: string;
   agent_id: string;
-  goal_id: string | null;
+  task_id: string | null;
   type: string;
   status: string;
   action: string;
@@ -28,7 +28,7 @@ interface ActionRow {
 export interface CreateActionRequest {
   sessionId: string;
   agentId: string;
-  goalId?: string;
+  taskId?: string;
   type: ActionType;
   status: ActionStatus;
   action: string;
@@ -53,7 +53,7 @@ export class ActionRepository extends BaseRepository {
 
     const stmt = this.db.prepare(`
       INSERT INTO action_records (
-        id, session_id, agent_id, goal_id, type, status, action, details,
+        id, session_id, agent_id, task_id, type, status, action, details,
         screenshot_id, screenshot_url, timestamp, duration,
         cost_prompt_tokens, cost_completion_tokens
       ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
@@ -63,7 +63,7 @@ export class ActionRepository extends BaseRepository {
       id,
       request.sessionId,
       request.agentId,
-      request.goalId || null,
+      request.taskId || null,
       request.type,
       request.status,
       request.action,
@@ -127,11 +127,11 @@ export class ActionRepository extends BaseRepository {
   }
 
   /**
-   * Find actions by goal ID
+   * Find actions by task ID
    */
-  findByGoalId(goalId: string): ActionRecord[] {
-    const stmt = this.db.prepare('SELECT * FROM action_records WHERE goal_id = ? ORDER BY timestamp DESC');
-    const rows = stmt.all(goalId) as ActionRow[];
+  findByTaskId(taskId: string): ActionRecord[] {
+    const stmt = this.db.prepare('SELECT * FROM action_records WHERE task_id = ? ORDER BY timestamp DESC');
+    const rows = stmt.all(taskId) as ActionRow[];
     return rows.map(row => this.mapRowToAction(row));
   }
 
@@ -154,11 +154,17 @@ export class ActionRepository extends BaseRepository {
   }
 
   /**
-   * Update action status
+   * Update action status and details
    */
-  updateStatus(id: string, status: ActionStatus, duration?: number): ActionRecord | null {
-    const fields = ['status = ?'];
-    const values: (string | number)[] = [status];
+  updateStatus(id: string, status: ActionStatus, duration?: number, details?: any): ActionRecord | null {
+    const action = this.findById(id);
+    if (!action) return null;
+
+    // Use provided details or keep existing
+    const updatedDetails = details || action.details;
+
+    const fields = ['status = ?', 'details = ?'];
+    const values: (string | number)[] = [status, JSON.stringify(updatedDetails)];
 
     if (duration !== undefined) {
       fields.push('duration = ?');
@@ -271,7 +277,7 @@ export class ActionRepository extends BaseRepository {
       id: row.id,
       sessionId: row.session_id,
       agentId: row.agent_id,
-      goalId: row.goal_id || undefined,
+      taskId: row.task_id || undefined,
       type: row.type as ActionType,
       status: row.status as ActionStatus,
       action: row.action,

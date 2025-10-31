@@ -12,7 +12,7 @@ interface SessionRow {
   id: string;
   name: string;
   agent_ids: string;
-  goal_ids: string;
+  task_ids: string;
   metadata: string | null;
   created_at: number;
   ended_at: number | null;
@@ -32,7 +32,7 @@ export class SessionRepository extends BaseRepository {
 
     const stmt = this.db.prepare(`
       INSERT INTO sessions (
-        id, name, agent_ids, goal_ids, metadata, created_at, ended_at
+        id, name, agent_ids, task_ids, metadata, created_at, ended_at
       ) VALUES (?, ?, ?, ?, ?, ?, ?)
     `);
 
@@ -187,8 +187,8 @@ export class SessionRepository extends BaseRepository {
         totalActions: 0,
         toolInvocations: 0,
         llmRequests: 0,
-        goalsCompleted: 0,
-        goalsFailed: 0,
+        tasksCompleted: 0,
+        tasksFailed: 0,
         screenshotCount: 0,
       },
       config: {

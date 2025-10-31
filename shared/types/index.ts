@@ -3,6 +3,8 @@
  * Used across backend, frontend, and plugins
  */
 
+import { Task, TaskResult } from './task-hierarchy';
+
 // ============================================================================
 // Core Plugin System
 // ============================================================================
@@ -477,36 +479,6 @@ export interface Span {
 }
 
 // ============================================================================
-// Task System
-// ============================================================================
-
-export interface Task {
-  id: string;
-  name: string;
-  description: string;
-  status: TaskStatus;
-  assignedTo?: string; // Agent ID
-  priority: TaskPriority;
-  createdAt: string;
-  updatedAt: string;
-  completedAt?: string;
-  input?: any;
-  output?: any;
-  error?: string;
-  metadata?: Record<string, any>;
-}
-
-export type TaskStatus = 'pending' | 'assigned' | 'in-progress' | 'completed' | 'failed' | 'cancelled';
-export type TaskPriority = 'low' | 'medium' | 'high' | 'urgent';
-
-export interface TaskResult {
-  success: boolean;
-  output?: any;
-  error?: string;
-  metadata?: Record<string, any>;
-}
-
-// ============================================================================
 // Event System
 // ============================================================================
 
@@ -594,12 +566,6 @@ export interface ServiceHealth {
 }
 
 // ============================================================================
-// Goal Hierarchy System (Legacy - being replaced by Task Hierarchy)
-// ============================================================================
-
-export * from './goal-hierarchy';
-
-// ============================================================================
 // Task Hierarchy System
 // ============================================================================
 
@@ -616,3 +582,9 @@ export * from './session-history';
 // ============================================================================
 
 export * from './agent-memory';
+
+// ============================================================================
+// Agent Messages (Letta/Agent File Compatible)
+// ============================================================================
+
+export * from './agent-messages';

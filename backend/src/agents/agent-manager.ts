@@ -2,7 +2,7 @@
  * Agent Manager - User-friendly interface for managing agents
  *
  * Provides simple methods for non-technical users to:
- * - Create agents with natural language goals
+ * - Create agents with natural language tasks
  * - Monitor agent progress
  * - View agent results
  */
@@ -13,7 +13,7 @@ import { logger } from '../core/logger';
 
 export interface CreateAgentRequest {
   name: string;
-  goal: string; // Simple, high-level goal in natural language
+  task?: string; // Simple, high-level task in natural language
   maxSteps?: number;
 }
 
@@ -34,20 +34,21 @@ export class AgentManager {
   }
 
   /**
-   * Create an agent with a simple natural language goal
+   * Create an agent with a simple natural language task
    *
    * Example:
    *   createAgent({
    *     name: "ResearchAgent",
-   *     goal: "Research the latest news about AI and save it to a file"
+   *     task: "Research the latest news about AI and save it to a file"
+   *   })
    *   })
    */
   async createAgent(request: CreateAgentRequest): Promise<Agent> {
-    logger.info('Creating agent', { name: request.name, goal: request.goal });
+    logger.info('Creating agent', { name: request.name, task: request.task });
 
     const agent = new AutonomousAgent({
       name: request.name,
-      goal: request.goal,
+      task: request.task,
       llmProvider: this.llmProvider,
       mcpServers: this.mcpServers,
       eventBus: this.eventBus,
@@ -119,7 +120,7 @@ export class AgentManager {
    */
   getAgentProgress(id: string): {
     name: string;
-    goal: string;
+    task: string;
     status: string;
     currentStep: number;
     recentActions: string[];
@@ -133,7 +134,7 @@ export class AgentManager {
 
     return {
       name: agent.name,
-      goal: state.memory?.goal || '',
+      task: state.memory?.task || '',
       status: agent.status,
       currentStep: state.memory?.currentStep || 0,
       recentActions: state.memory?.executionLog?.slice(-5) || [],

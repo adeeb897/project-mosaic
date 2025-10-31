@@ -36,8 +36,8 @@ interface TimelineEntry {
   icon: string;
   color: string;
   screenshotUrl?: string;
-  goalId?: string;
-  goalTitle?: string;
+  taskId?: string;
+  taskTitle?: string;
   summary: string;
   details?: {
     tool?: string;
@@ -55,7 +55,7 @@ interface ActivityTimelineProps {
 
 export function ActivityTimeline({ sessionId, realtimeEvents }: ActivityTimelineProps) {
   const [timeline, setTimeline] = useState<TimelineEntry[]>([]);
-  const [filter, setFilter] = useState<'all' | 'goals' | 'tools' | 'errors'>('all');
+  const [filter, setFilter] = useState<'all' | 'tasks' | 'tools' | 'errors'>('all');
   const [loading, setLoading] = useState(true);
   const [expandedItems, setExpandedItems] = useState<Set<string>>(new Set());
 
@@ -86,7 +86,7 @@ export function ActivityTimeline({ sessionId, realtimeEvents }: ActivityTimeline
   };
 
   const shouldAddToTimeline = (event: RealtimeEvent): boolean => {
-    return ['action:recorded', 'goal:created', 'goal:updated', 'agent:progress'].includes(
+    return ['action:recorded', 'task:created', 'task:updated', 'agent:progress'].includes(
       event.type
     );
   };
@@ -103,7 +103,7 @@ export function ActivityTimeline({ sessionId, realtimeEvents }: ActivityTimeline
 
   const filteredTimeline = timeline.filter((entry) => {
     if (filter === 'all') return true;
-    if (filter === 'goals') return entry.type.startsWith('goal_');
+    if (filter === 'tasks') return entry.type.startsWith('task_');
     if (filter === 'tools') return entry.type === 'tool_invoked';
     if (filter === 'errors') return entry.status === 'failed';
     return true;
@@ -111,7 +111,7 @@ export function ActivityTimeline({ sessionId, realtimeEvents }: ActivityTimeline
 
   const getEntryIcon = (entry: TimelineEntry) => {
     if (entry.type === 'tool_invoked') return <Wrench className="w-5 h-5" />;
-    if (entry.type.startsWith('goal_')) return <Target className="w-5 h-5" />;
+    if (entry.type.startsWith('task_')) return <Target className="w-5 h-5" />;
     if (entry.status === 'failed') return <AlertCircle className="w-5 h-5" />;
     return <MessageSquare className="w-5 h-5" />;
   };
@@ -198,7 +198,7 @@ export function ActivityTimeline({ sessionId, realtimeEvents }: ActivityTimeline
             className="input w-auto"
           >
             <option value="all">All Events</option>
-            <option value="goals">Goals Only</option>
+            <option value="tasks">Tasks Only</option>
             <option value="tools">Tool Usage</option>
             <option value="errors">Errors Only</option>
           </select>
@@ -242,10 +242,10 @@ export function ActivityTimeline({ sessionId, realtimeEvents }: ActivityTimeline
 
                         {/* Meta info */}
                         <div className="flex flex-wrap items-center gap-3 text-xs">
-                          {entry.goalTitle && (
+                          {entry.taskTitle && (
                             <span className="inline-flex items-center gap-1 badge badge-info">
                               <Target className="w-3 h-3" />
-                              {entry.goalTitle}
+                              {entry.taskTitle}
                             </span>
                           )}
                           <span className={`badge ${

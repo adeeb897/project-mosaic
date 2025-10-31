@@ -9,25 +9,25 @@ export function createRouter(agentManager: AgentManager): Router {
   const router = Router();
 
   /**
-   * POST /agents - Create a new agent with a goal
+   * POST /agents - Create a new agent with a task
    *
    * Body: {
    *   "name": "MyAgent",
-   *   "goal": "Create a summary of today's tech news"
+   *   "task": "Create a summary of today's tech news"
    * }
    */
   router.post('/agents', async (req, res) => {
     try {
-      const { name, goal, maxSteps } = req.body;
+      const { name, task, maxSteps } = req.body;
 
-      if (!name || !goal) {
+      if (!name) {
         return res.status(400).json({
           success: false,
-          error: 'Name and goal are required',
+          error: 'Name is required',
         });
       }
 
-      const agent = await agentManager.createAgent({ name, goal, maxSteps });
+      const agent = await agentManager.createAgent({ name, task, maxSteps });
 
       res.json({
         success: true,
@@ -35,7 +35,7 @@ export function createRouter(agentManager: AgentManager): Router {
           id: agent.id,
           name: agent.name,
           status: agent.status,
-          goal,
+          task,
         },
       });
     } catch (error: any) {

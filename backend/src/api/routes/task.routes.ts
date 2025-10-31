@@ -1,39 +1,40 @@
 /**
- * Goal Management API Routes
+ * Task Management API Routes
+ * Full CRUD operations for tasks independent of agents
  */
 
 import { Router } from 'express';
-import { GoalManager } from '../../services/goal/goal-manager.service';
+import { TaskManager } from '../../services/task/task-manager.service';
 
-export function createGoalRoutes(goalManager: GoalManager) {
+export function createTaskRoutes(taskManager: TaskManager) {
   const router = Router();
 
   /**
-   * GET /api/goals
-   * Query goals with filters
+   * GET /api/tasks
+   * Query tasks with filters
    */
   router.get('/', async (req, res) => {
     try {
-      const { status, assignedTo, createdBy, parentGoalId, priority, tags } = req.query;
+      const { status, assignedTo, createdBy, parentTaskId, priority, tags } = req.query;
 
-      const goals = goalManager.queryGoals({
+      const tasks = taskManager.queryTasks({
         status: status as any,
         assignedTo: assignedTo as string,
         createdBy: createdBy as string,
-        parentGoalId: parentGoalId as string,
+        parentTaskId: parentTaskId as string,
         priority: priority ? [priority as any] : undefined,
         tags: tags ? (tags as string).split(',') : undefined,
       });
 
-      res.json({ success: true, data: goals });
+      res.json({ success: true, data: tasks });
     } catch (error: any) {
       res.status(500).json({ success: false, error: error.message });
     }
   });
 
   /**
-   * POST /api/goals
-   * Create a new goal
+   * POST /api/tasks
+   * Create a new task
    */
   router.post('/', async (req, res) => {
     try {
@@ -41,7 +42,7 @@ export function createGoalRoutes(goalManager: GoalManager) {
         title,
         description,
         priority,
-        parentGoalId,
+        parentTaskId,
         createdBy,
         assignedTo,
         tags,
@@ -55,30 +56,30 @@ export function createGoalRoutes(goalManager: GoalManager) {
         });
       }
 
-      const goal = await goalManager.createGoal({
+      const task = await taskManager.createTask({
         title,
         description,
         priority,
-        parentGoalId,
+        parentTaskId,
         createdBy,
         assignedTo,
         tags,
         metadata,
       });
 
-      res.json({ success: true, data: goal });
+      res.json({ success: true, data: task });
     } catch (error: any) {
       res.status(500).json({ success: false, error: error.message });
     }
   });
 
   /**
-   * GET /api/goals/roots
-   * Get all root goals (no parent)
+   * GET /api/tasks/roots
+   * Get all root tasks (no parent)
    */
   router.get('/roots', async (req, res) => {
     try {
-      const roots = goalManager.getRootGoals();
+      const roots = taskManager.getRootTasks();
       res.json({ success: true, data: roots });
     } catch (error: any) {
       res.status(500).json({ success: false, error: error.message });
@@ -86,12 +87,12 @@ export function createGoalRoutes(goalManager: GoalManager) {
   });
 
   /**
-   * GET /api/goals/stats
-   * Get goal statistics
+   * GET /api/tasks/stats
+   * Get task statistics
    */
   router.get('/stats', async (req, res) => {
     try {
-      const stats = goalManager.getStats();
+      const stats = taskManager.getStats();
       res.json({ success: true, data: stats });
     } catch (error: any) {
       res.status(500).json({ success: false, error: error.message });
@@ -99,38 +100,38 @@ export function createGoalRoutes(goalManager: GoalManager) {
   });
 
   /**
-   * GET /api/goals/:id
-   * Get goal details
+   * GET /api/tasks/:id
+   * Get task details
    */
   router.get('/:id', async (req, res) => {
     try {
-      const goal = goalManager.getGoal(req.params.id);
+      const task = taskManager.getTask(req.params.id);
 
-      if (!goal) {
+      if (!task) {
         return res.status(404).json({
           success: false,
-          error: 'Goal not found',
+          error: 'Task not found',
         });
       }
 
-      res.json({ success: true, data: goal });
+      res.json({ success: true, data: task });
     } catch (error: any) {
       res.status(500).json({ success: false, error: error.message });
     }
   });
 
   /**
-   * GET /api/goals/:id/tree
-   * Get goal tree (hierarchy)
+   * GET /api/tasks/:id/tree
+   * Get task tree (hierarchy)
    */
   router.get('/:id/tree', async (req, res) => {
     try {
-      const tree = goalManager.getGoalTree(req.params.id);
+      const tree = taskManager.getTaskTree(req.params.id);
 
       if (!tree) {
         return res.status(404).json({
           success: false,
-          error: 'Goal not found',
+          error: 'Task not found',
         });
       }
 
@@ -141,79 +142,94 @@ export function createGoalRoutes(goalManager: GoalManager) {
   });
 
   /**
-   * PATCH /api/goals/:id
-   * Update goal
+   * PATCH /api/tasks/:id
+   * Update task (supports full edit)
    */
   router.patch('/:id', async (req, res) => {
     try {
-      const { status, assignedTo, strategy, actualSteps, result, errorMessage, metadata } =
-        req.body;
-
-      const goal = await goalManager.updateGoal({
-        goalId: req.params.id,
+      const {
+        title,
+        description,
         status,
         assignedTo,
+        priority,
         strategy,
         actualSteps,
         result,
         errorMessage,
+        tags,
+        metadata,
+      } = req.body;
+
+      const task = await taskManager.updateTask({
+        taskId: req.params.id,
+        title,
+        description,
+        status,
+        assignedTo,
+        priority,
+        strategy,
+        actualSteps,
+        result,
+        errorMessage,
+        tags,
         metadata,
       });
 
-      res.json({ success: true, data: goal });
+      res.json({ success: true, data: task });
     } catch (error: any) {
       res.status(500).json({ success: false, error: error.message });
     }
   });
 
   /**
-   * POST /api/goals/:id/decompose
-   * Decompose a goal into sub-goals
+   * POST /api/tasks/:id/decompose
+   * Decompose a task into sub-tasks
    */
   router.post('/:id/decompose', async (req, res) => {
     try {
-      const { reasoning, subGoals } = req.body;
+      const { reasoning, subTasks } = req.body;
 
-      if (!reasoning || !subGoals || !Array.isArray(subGoals)) {
+      if (!reasoning || !subTasks || !Array.isArray(subTasks)) {
         return res.status(400).json({
           success: false,
-          error: 'Reasoning and subGoals array are required',
+          error: 'Reasoning and subTasks array are required',
         });
       }
 
-      const createdSubGoals = await goalManager.decomposeGoal({
-        goalId: req.params.id,
+      const createdSubTasks = await taskManager.decomposeTask({
+        taskId: req.params.id,
         reasoning,
-        subGoals,
+        subTasks,
       });
 
-      res.json({ success: true, data: createdSubGoals });
+      res.json({ success: true, data: createdSubTasks });
     } catch (error: any) {
       res.status(500).json({ success: false, error: error.message });
     }
   });
 
   /**
-   * DELETE /api/goals/:id
-   * Delete a goal (only if not active)
+   * DELETE /api/tasks/:id
+   * Delete a task (only if not active)
    */
   router.delete('/:id', async (req, res) => {
     try {
-      const deleted = await goalManager.deleteGoal(req.params.id);
+      const deleted = await taskManager.deleteTask(req.params.id);
 
       if (deleted) {
         res.json({
           success: true,
-          data: { message: 'Goal deleted successfully' },
+          data: { message: 'Task deleted successfully' },
         });
       } else {
         res.status(404).json({
           success: false,
-          error: 'Goal not found',
+          error: 'Task not found',
         });
       }
     } catch (error: any) {
-      // Check if it's a validation error (active goal, has active children, etc.)
+      // Check if it's a validation error (active task, has active children, etc.)
       if (error.message.includes('Cannot delete')) {
         res.status(400).json({ success: false, error: error.message });
       } else {

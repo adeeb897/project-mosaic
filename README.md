@@ -139,7 +139,7 @@ open http://localhost:3001
 1. Click "Create Agent" in the dashboard
 2. Enter:
    - **Name**: ResearchAgent
-   - **Goal**: "Research renewable energy solutions and create a report"
+   - **Task**: "Research renewable energy solutions and create a report"
 3. Click "Create" → then click "Start"
 4. Watch the agent work in the Activity Timeline!
 
@@ -301,9 +301,9 @@ Experiment with agent communication patterns, emergent behaviors, and coordinati
 ### ✅ Phase 3: Admin Dashboard (Complete)
 - [x] Real-time event stream with WebSocket
 - [x] Agent creation and management UI
-- [x] Goal hierarchy visualization
+- [x] Task hierarchy visualization
 - [x] Activity timeline with live updates
-- [x] Goal creation and tracking
+- [x] Task creation and tracking
 
 ### 🎯 Phase 4: Enhanced Capabilities
 - [ ] Browser MCP server

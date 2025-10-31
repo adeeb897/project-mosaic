@@ -8,8 +8,6 @@ import {
   MCPToolResult,
 } from '@mosaic/shared';
 import puppeteer, { Browser, Page } from 'puppeteer';
-import * as fs from 'fs/promises';
-import * as path from 'path';
 import { v4 as uuidv4 } from 'uuid';
 
 interface BrowserSession {
@@ -34,25 +32,16 @@ export class BrowserMCPServer implements MCPServerPlugin {
 
   private sessions: Map<string, BrowserSession> = new Map();
   private context?: PluginContext;
-  private screenshotsDir: string;
   private maxSessions = 5;
   private sessionTimeout = 30 * 60 * 1000; // 30 minutes
 
-  constructor(screenshotsDir?: string) {
-    this.screenshotsDir = screenshotsDir || path.join(process.cwd(), 'storage', 'screenshots');
-  }
-
   async initialize(context: PluginContext): Promise<void> {
     this.context = context;
-
-    // Ensure screenshots directory exists
-    await fs.mkdir(this.screenshotsDir, { recursive: true });
 
     // Start session cleanup interval
     this.startSessionCleanup();
 
     context.logger.info('Browser MCP server initialized', {
-      screenshotsDir: this.screenshotsDir,
       maxSessions: this.maxSessions,
     });
   }
@@ -277,7 +266,7 @@ export class BrowserMCPServer implements MCPServerPlugin {
     }
 
     // Navigate to URL
-    await session.page.goto(url, { waitUntil: 'networkidle0', timeout: 30000 });
+    await session.page.goto(url, { waitUntil: 'domcontentloaded', timeout: 60000 });
 
     // Wait for additional rendering
     if (waitFor > 0) {
@@ -313,11 +302,8 @@ export class BrowserMCPServer implements MCPServerPlugin {
       };
     }
 
-    // Generate unique filename
     const timestamp = Date.now();
     const screenshotId = uuidv4();
-    const filename = `screenshot_${screenshotId}_${timestamp}.png`;
-    const filepath = path.join(this.screenshotsDir, filename);
 
     // Capture screenshot
     const screenshotBuffer = await session.page.screenshot({
@@ -325,11 +311,8 @@ export class BrowserMCPServer implements MCPServerPlugin {
       type: 'png',
     });
 
-    // Save to disk
-    await fs.writeFile(filepath, screenshotBuffer);
-
-    // Convert to base64 for immediate transmission
-    const base64Screenshot = screenshotBuffer.toString('base64');
+    // Convert to base64 - Buffer's toString with 'base64' encoding
+    const base64Screenshot = Buffer.from(screenshotBuffer).toString('base64');
 
     session.lastActivityAt = new Date();
 
@@ -343,8 +326,6 @@ export class BrowserMCPServer implements MCPServerPlugin {
         sessionId: session.id,
         agentId: session.agentId,
         screenshotId,
-        filename,
-        filepath,
         base64: base64Screenshot,
         timestamp,
         url: session.page.url(),
@@ -356,7 +337,6 @@ export class BrowserMCPServer implements MCPServerPlugin {
     this.context?.logger.info('Screenshot captured', {
       sessionId,
       screenshotId,
-      filename,
       fullPage,
     });
 
@@ -364,8 +344,6 @@ export class BrowserMCPServer implements MCPServerPlugin {
       success: true,
       data: {
         screenshotId,
-        filename,
-        filepath,
         base64: base64Screenshot,
         url: session.page.url(),
         timestamp,
@@ -538,7 +516,7 @@ export class BrowserMCPServer implements MCPServerPlugin {
 
     // Launch new browser instance
     const browser = await puppeteer.launch({
-      headless: 'new',
+      headless: true,
       args: [
         '--no-sandbox',
         '--disable-setuid-sandbox',

@@ -2,7 +2,7 @@
 
 ## Overview
 
-Project Mosaic now includes a comprehensive persistence layer that ensures all agent configurations, goals, activity timelines, and agent memory are saved to disk. This allows the system to survive server restarts and crashes, with agents able to resume their work exactly where they left off.
+Project Mosaic now includes a comprehensive persistence layer that ensures all agent configurations, tasks, activity timelines, and agent memory are saved to disk. This allows the system to survive server restarts and crashes, with agents able to resume their work exactly where they left off.
 
 ## Architecture
 
@@ -21,13 +21,13 @@ Project Mosaic now includes a comprehensive persistence layer that ensures all a
 
 2. **Repositories** ([`backend/src/persistence/repositories/`](../backend/src/persistence/repositories/))
    - `AgentRepository` - Agent configurations and state
-   - `GoalRepository` - Goal hierarchy and relationships
+   - `TaskRepository` - Task hierarchy and relationships
    - `SessionRepository` - Session metadata
    - `ActionRepository` - Immutable activity timeline
    - `MemoryRepository` - Agent memory entries (mutable)
 
 3. **Services**
-   - `GoalManager` - Uses GoalRepository for persistence
+   - `TaskManager` - Uses TaskRepository for persistence
    - `SessionManager` - Uses SessionRepository and ActionRepository
    - `MemoryManager` - Uses MemoryRepository
 
@@ -46,25 +46,25 @@ CREATE TABLE agents (
   status TEXT NOT NULL,
   config TEXT NOT NULL,        -- JSON
   metadata TEXT,                -- JSON
-  root_goal TEXT,
+  root_task TEXT,
   session_id TEXT,
   created_at INTEGER NOT NULL,
   updated_at INTEGER NOT NULL
 )
 ```
 
-#### `goals`
-Stores the goal hierarchy with parent-child relationships.
+#### `tasks`
+Stores the task hierarchy with parent-child relationships.
 
 ```sql
-CREATE TABLE goals (
+CREATE TABLE tasks (
   id TEXT PRIMARY KEY,
   title TEXT NOT NULL,
   description TEXT,
   status TEXT NOT NULL,
   priority TEXT NOT NULL,
-  parent_goal_id TEXT,
-  child_goal_ids TEXT,          -- JSON array
+  parent_task_id TEXT,
+  child_task_ids TEXT,          -- JSON array
   created_by TEXT NOT NULL,
   assigned_to TEXT,
   agent_id TEXT,
@@ -76,7 +76,7 @@ CREATE TABLE goals (
   estimated_duration INTEGER,
   created_at INTEGER NOT NULL,
   updated_at INTEGER NOT NULL,
-  FOREIGN KEY (parent_goal_id) REFERENCES goals(id) ON DELETE CASCADE,
+  FOREIGN KEY (parent_task_id) REFERENCES tasks(id) ON DELETE CASCADE,
   FOREIGN KEY (agent_id) REFERENCES agents(id) ON DELETE SET NULL
 )
 ```
@@ -89,7 +89,7 @@ CREATE TABLE sessions (
   id TEXT PRIMARY KEY,
   name TEXT NOT NULL,
   agent_ids TEXT NOT NULL,      -- JSON array
-  goal_ids TEXT NOT NULL,        -- JSON array
+  task_ids TEXT NOT NULL,        -- JSON array
   metadata TEXT,                 -- JSON
   created_at INTEGER NOT NULL,
   ended_at INTEGER
@@ -104,7 +104,7 @@ CREATE TABLE action_records (
   id TEXT PRIMARY KEY,
   session_id TEXT NOT NULL,
   agent_id TEXT NOT NULL,
-  goal_id TEXT,
+  task_id TEXT,
   type TEXT NOT NULL,
   status TEXT NOT NULL,
   action TEXT NOT NULL,
@@ -156,13 +156,13 @@ CREATE TABLE memory_entries (
   content TEXT NOT NULL,
   metadata TEXT,                 -- JSON
   tags TEXT,                     -- JSON array
-  related_goal_id TEXT,
+  related_task_id TEXT,
   created_at INTEGER NOT NULL,
   updated_at INTEGER NOT NULL,
   expires_at INTEGER,
   FOREIGN KEY (agent_id) REFERENCES agents(id) ON DELETE CASCADE,
   FOREIGN KEY (session_id) REFERENCES sessions(id) ON DELETE CASCADE,
-  FOREIGN KEY (related_goal_id) REFERENCES goals(id) ON DELETE SET NULL
+  FOREIGN KEY (related_task_id) REFERENCES tasks(id) ON DELETE SET NULL
 )
 ```
 
@@ -184,7 +184,7 @@ CREATE TABLE memory_entries (
 
 ### Memory Types
 
-1. **plan** - Strategic plans and decomposed goal strategies
+1. **plan** - Strategic plans and decomposed task strategies
 2. **thought** - Reasoning and decision-making notes
 3. **learning** - Lessons learned, patterns discovered
 4. **context** - Important context about tasks
@@ -214,7 +214,7 @@ Returns organized memory by type:
   "data": {
     "agentId": "...",
     "sessionId": "...",
-    "currentGoalId": "...",
+    "currentTaskId": "...",
     "plans": [...],
     "thoughts": [...],
     "learnings": [...],
@@ -235,7 +235,7 @@ Query parameters:
 - `importance` - Filter by importance
 - `tags` - Comma-separated tags
 - `search` - Text search in title/content
-- `relatedGoalId` - Filter by related goal
+- `relatedTaskId` - Filter by related task
 - `sessionId` - Filter by session
 - `limit` - Max results
 - `offset` - Pagination offset
@@ -249,7 +249,7 @@ POST /api/agents/:agentId/memory?sessionId=<sessionId>
   "importance": "high",
   "title": "Climate Research Strategy",
   "content": "1. Research current technologies...",
-  "relatedGoalId": "goal-123",
+  "relatedTaskId": "task-123",
   "tags": ["research", "climate"],
   "metadata": { "step": 1 }
 }
@@ -282,7 +282,7 @@ Agents have built-in memory helper methods:
 
 ```typescript
 // Save different types of memories
-await agent.savePlan(title, content, relatedGoalId);
+await agent.savePlan(title, content, relatedTaskId);
 await agent.saveThought(title, content, importance);
 await agent.saveLearning(title, content);
 await agent.saveContext(title, content, tags);
@@ -302,8 +302,8 @@ const plans = await agent.getMemoriesByType('plan');
 
 ✅ **Always Persisted:**
 - Agent configurations
-- Goal hierarchy (tree structure)
-- All goals with status, priority, relationships
+- Task hierarchy (tree structure)
+- All tasks with status, priority, relationships
 - Session metadata
 - Complete activity timeline (every action)
 - All memory entries
@@ -315,7 +315,7 @@ When the server restarts:
 
 1. **Database Reconnects**: SQLite database is opened
 2. **Agents Can Be Retrieved**: Query `GET /api/agents` returns all agents
-3. **Goals Are Intact**: Full goal tree is preserved
+3. **Tasks Are Intact**: Full task tree is preserved
 4. **Timeline Survives**: All past actions are queryable
 5. **Memory Persists**: Agent memory entries remain available
 
@@ -363,9 +363,9 @@ await database.backup('./backups/mosaic-backup.db');
 ### Indices
 
 The database includes indices for common queries:
-- Goals by agent_id, session_id, status, parent_goal_id
+- Tasks by agent_id, session_id, status, parent_task_id
 - Actions by session_id, agent_id, timestamp
-- Memory by agent_id, session_id, type, importance, related_goal_id
+- Memory by agent_id, session_id, type, importance, related_task_id
 
 ### Query Optimization
 

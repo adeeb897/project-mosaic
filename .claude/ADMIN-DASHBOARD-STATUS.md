@@ -4,9 +4,9 @@
 
 Building a user-friendly admin dashboard for Project Mosaic that allows non-technical users to:
 1. Create autonomous agents
-2. Assign high-level goals (individual or shared)
+2. Assign high-level tasks (individual or shared)
 3. Track agent activity in real-time
-4. Visualize goal hierarchies
+4. Visualize task hierarchies
 
 ## Architecture
 
@@ -28,15 +28,15 @@ Building a user-friendly admin dashboard for Project Mosaic that allows non-tech
    - `POST /api/agents/:id/stop` - Stop agent
    - `DELETE /api/agents/:id` - Delete agent
 
-2. **Goal Routes** (`backend/src/api/routes/goal.routes.ts`)
-   - `GET /api/goals` - Query goals with filters
-   - `POST /api/goals` - Create new goal
-   - `GET /api/goals/roots` - Get root goals
-   - `GET /api/goals/stats` - Get statistics
-   - `GET /api/goals/:id` - Get goal details
-   - `GET /api/goals/:id/tree` - Get goal hierarchy
-   - `PATCH /api/goals/:id` - Update goal
-   - `POST /api/goals/:id/decompose` - Decompose goal
+2. **Task Routes** (`backend/src/api/routes/task.routes.ts`)
+   - `GET /api/tasks` - Query tasks with filters
+   - `POST /api/tasks` - Create new task
+   - `GET /api/tasks/roots` - Get root tasks
+   - `GET /api/tasks/stats` - Get statistics
+   - `GET /api/tasks/:id` - Get task details
+   - `GET /api/tasks/:id/tree` - Get task hierarchy
+   - `PATCH /api/tasks/:id` - Update task
+   - `POST /api/tasks/:id/decompose` - Decompose task
 
 3. **Session Routes** (`backend/src/api/routes/session.routes.ts`)
    - `GET /api/sessions` - List sessions
@@ -47,7 +47,7 @@ Building a user-friendly admin dashboard for Project Mosaic that allows non-tech
    - `GET /api/sessions/:id/export` - Export session
 
 **WebSocket Events:**
-- `goal:created`, `goal:updated`
+- `task:created`, `task:updated`
 - `agent:started`, `agent:stopped`, `agent:progress`, `agent:error`, `agent:completed`
 - `action:recorded`, `action:completed`
 - `screenshot:captured`
@@ -65,7 +65,7 @@ Building a user-friendly admin dashboard for Project Mosaic that allows non-tech
 **Components Created:**
 
 1. **Main Dashboard** (`frontend/src/app/page.tsx`)
-   - Tab navigation (Agents, Goals, Activity, Tree)
+   - Tab navigation (Agents, Tasks, Activity, Tree)
    - Connection status indicator
    - Clean, modern layout
 
@@ -84,19 +84,19 @@ Building a user-friendly admin dashboard for Project Mosaic that allows non-tech
 
 **Components Remaining:**
 
-4. **Goal Manager** (`frontend/src/components/GoalManager.tsx`)
-   - Create individual/shared goals
-   - Assign goals to agents
+4. **Task Manager** (`frontend/src/components/TaskManager.tsx`)
+   - Create individual/shared tasks
+   - Assign tasks to agents
    - Filter by status, priority
-   - View/edit goal details
+   - View/edit task details
 
 5. **Activity Timeline** (`frontend/src/components/ActivityTimeline.tsx`)
    - Live feed of agent actions
    - User-friendly descriptions
    - Screenshot previews
-   - Filter by agent/goal/type
+   - Filter by agent/task/type
 
-6. **Goal Tree Visualization** (`frontend/src/components/GoalTree.tsx`)
+6. **Task Tree Visualization** (`frontend/src/components/TaskTree.tsx`)
    - Interactive tree view
    - Show parent/child relationships
    - Status indicators
@@ -109,12 +109,12 @@ Building a user-friendly admin dashboard for Project Mosaic that allows non-tech
 1. User clicks "Create Agent" button
 2. Form appears with two fields:
    - **Agent Name**: e.g., "ResearchAgent"
-   - **High-Level Goal**: e.g., "Research renewable energy solutions and create a comprehensive report"
+   - **High-Level Task**: e.g., "Research renewable energy solutions and create a comprehensive report"
 3. User submits (no technical knowledge required!)
 4. Agent is created and session starts
 5. Agent automatically:
-   - Decides if goal should be decomposed
-   - Breaks it into sub-goals if complex
+   - Decides if task should be decomposed
+   - Breaks it into sub-tasks if complex
    - Starts executing
 
 ### Monitoring Progress
@@ -132,12 +132,12 @@ Building a user-friendly admin dashboard for Project Mosaic that allows non-tech
    - Icon (visual identification)
    - Timestamp
    - Plain English description
-   - Related goal (if any)
+   - Related task (if any)
    - Screenshot (if available)
 
-### Viewing Goal Hierarchy
+### Viewing Task Hierarchy
 
-1. User switches to "Goal Tree" tab
+1. User switches to "Task Tree" tab
 2. Sees interactive tree:
    ```
    ✅ Research renewable energy solutions [completed]
@@ -155,9 +155,9 @@ Building a user-friendly admin dashboard for Project Mosaic that allows non-tech
 ### Immediate (To Complete MVP)
 
 1. **Complete Frontend Components:**
-   - Goal Manager
+   - Task Manager
    - Activity Timeline
-   - Goal Tree Visualization
+   - Task Tree Visualization
 
 2. **Add Styling:**
    - Tailwind CSS configuration
@@ -167,21 +167,21 @@ Building a user-friendly admin dashboard for Project Mosaic that allows non-tech
 3. **Test Integration:**
    - Start backend with API server
    - Start frontend dev server
-   - Test agent creation → goal decomposition → activity tracking flow
+   - Test agent creation → task decomposition → activity tracking flow
 
 ### Future Enhancements
 
-1. **Goal Templates:**
-   - Pre-defined common goals
+1. **Task Templates:**
+   - Pre-defined common tasks
    - One-click creation
 
 2. **Multi-Agent Coordination:**
-   - Assign different sub-goals to different agents
+   - Assign different sub-tasks to different agents
    - See agents collaborating
 
 3. **Advanced Filters:**
    - Filter timeline by time range
-   - Filter goals by priority, status
+   - Filter tasks by priority, status
    - Search functionality
 
 4. **Export/Import:**
@@ -195,7 +195,7 @@ Building a user-friendly admin dashboard for Project Mosaic that allows non-tech
 6. **Analytics Dashboard:**
    - Agent performance metrics
    - Cost tracking
-   - Goal completion rates
+   - Task completion rates
 
 ## File Structure
 
@@ -206,15 +206,15 @@ backend/
 │   │   ├── server.ts              # Main API server
 │   │   └── routes/
 │   │       ├── agent.routes.ts    # Agent management
-│   │       ├── goal.routes.ts     # Goal management
+│   │       ├── task.routes.ts     # Task management
 │   │       └── session.routes.ts  # Session/history
 │   ├── services/
-│   │   ├── goal/
-│   │   │   └── goal-manager.service.ts
+│   │   ├── task/
+│   │   │   └── task-manager.service.ts
 │   │   └── session/
 │   │       └── session-manager.service.ts
 │   └── agents/
-│       └── goal-oriented-agent.ts
+│       └── task-oriented-agent.ts
 
 frontend/
 ├── src/
@@ -222,9 +222,9 @@ frontend/
 │   │   └── page.tsx              # Main dashboard
 │   ├── components/
 │   │   ├── AgentManager.tsx      # ✅ Complete
-│   │   ├── GoalManager.tsx       # ⏳ TODO
+│   │   ├── TaskManager.tsx       # ⏳ TODO
 │   │   ├── ActivityTimeline.tsx  # ⏳ TODO
-│   │   └── GoalTree.tsx          # ⏳ TODO
+│   │   └── TaskTree.tsx          # ⏳ TODO
 │   └── hooks/
 │       └── useWebSocket.ts       # ✅ Complete
 ```
@@ -240,13 +240,13 @@ frontend/
 - [ ] Can start agent
 - [ ] Real-time events show in UI
 - [ ] Can view activity timeline
-- [ ] Can view goal tree
+- [ ] Can view task tree
 - [ ] Can stop/delete agent
 
 ## Known Issues
 
 1. **TypeScript Compilation:**
-   - Some type exports need fixing (Goal, GoalDecomposition)
+   - Some type exports need fixing (Task, TaskDecomposition)
    - Agent interface missing methods (pause, resume, onMessage)
    - SystemEvent needs id and source fields
 

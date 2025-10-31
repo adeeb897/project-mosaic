@@ -48,7 +48,7 @@ export function createMemoryRoutes(memoryManager: MemoryManager): Router {
         importance,
         tags,
         search,
-        relatedGoalId,
+        relatedTaskId,
         sessionId,
         limit,
         offset,
@@ -61,7 +61,7 @@ export function createMemoryRoutes(memoryManager: MemoryManager): Router {
         importance: importance as any,
         tags: tags ? (tags as string).split(',') : undefined,
         search: search as string | undefined,
-        relatedGoalId: relatedGoalId as string | undefined,
+        relatedTaskId: relatedTaskId as string | undefined,
         limit: limit ? parseInt(limit as string) : undefined,
         offset: offset ? parseInt(offset as string) : undefined,
       };
