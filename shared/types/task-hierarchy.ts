@@ -42,6 +42,9 @@ export interface Task {
   result?: TaskResult;
   errorMessage?: string;
 
+  // Agent communication
+  agentNotes?: string; // Agent's response, status update, or blocker information
+
   // Context
   tags: string[];
   metadata: Record<string, any>;
@@ -82,6 +85,7 @@ export interface UpdateTaskRequest {
   actualSteps?: number;
   result?: any;
   errorMessage?: string;
+  agentNotes?: string;
   tags?: string[];
   metadata?: Record<string, any>;
 }

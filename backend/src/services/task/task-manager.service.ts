@@ -130,6 +130,7 @@ export class TaskManager extends EventEmitter {
     if (request.actualSteps !== undefined) task.actualSteps = request.actualSteps;
     if (request.result !== undefined) task.result = request.result;
     if (request.errorMessage !== undefined) task.errorMessage = request.errorMessage;
+    if (request.agentNotes !== undefined) task.agentNotes = request.agentNotes;
     if (request.tags !== undefined) task.tags = request.tags;
     if (request.metadata) {
       task.metadata = { ...task.metadata, ...request.metadata };

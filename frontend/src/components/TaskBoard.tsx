@@ -20,6 +20,7 @@ interface Task {
   parentTaskId?: string;
   childTaskIds: string[];
   tags: string[];
+  agentNotes?: string;
   createdAt: string;
 }
 
@@ -50,8 +51,10 @@ export function TaskBoard({ realtimeEvents, onTaskClick }: TaskBoardProps) {
     tags: '',
   });
 
-  // Edit modal
+  // View/Edit modal
+  const [showViewModal, setShowViewModal] = useState(false);
   const [showEditModal, setShowEditModal] = useState(false);
+  const [viewingTask, setViewingTask] = useState<Task | null>(null);
   const [editingTask, setEditingTask] = useState<Task | null>(null);
 
   useEffect(() => {
@@ -131,9 +134,15 @@ export function TaskBoard({ realtimeEvents, onTaskClick }: TaskBoardProps) {
     }
   };
 
+  const openViewModal = (task: Task) => {
+    setViewingTask(task);
+    setShowViewModal(true);
+  };
+
   const openEditModal = (task: Task) => {
     setEditingTask({ ...task });
     setShowEditModal(true);
+    setShowViewModal(false);
   };
 
   const handleDragStart = (e: React.DragEvent, task: Task) => {
@@ -221,7 +230,8 @@ export function TaskBoard({ realtimeEvents, onTaskClick }: TaskBoardProps) {
         <div
           draggable
           onDragStart={(e) => handleDragStart(e, task)}
-          className={`bg-white rounded-lg border-l-4 ${getPriorityColor(task.priority)} p-3 shadow-sm hover:shadow-md transition-shadow cursor-move`}
+          onClick={() => openViewModal(task)}
+          className={`bg-white rounded-lg border-l-4 ${getPriorityColor(task.priority)} p-3 shadow-sm hover:shadow-md transition-shadow cursor-pointer`}
           style={{ marginLeft: depth > 0 ? `${depth * 16}px` : '0' }}
         >
           <div className="flex items-start justify-between gap-2 mb-2">
@@ -243,7 +253,7 @@ export function TaskBoard({ realtimeEvents, onTaskClick }: TaskBoardProps) {
               {task.status.replace('_', ' ')}
             </span>
 
-            <div className="flex gap-1">
+            <div className="flex gap-1" onClick={(e) => e.stopPropagation()}>
               <button
                 onClick={() => openEditModal(task)}
                 className="p-1 hover:bg-blue-50 rounded text-blue-600"
@@ -391,6 +401,24 @@ export function TaskBoard({ realtimeEvents, onTaskClick }: TaskBoardProps) {
                         Start
                       </button>
                     )}
+                    {/* Stop button - only show if currently running */}
+                    {isCurrentlyRunning && (
+                      <button
+                        onClick={async () => {
+                          try {
+                            await axios.post(getApiUrl(`/api/agents/${agent.id}/tasks/${task.id}/stop`));
+                            await fetchData();
+                          } catch (error: any) {
+                            alert(`Failed to stop task: ${error.response?.data?.error || error.message}`);
+                          }
+                        }}
+                        className="absolute top-2 right-2 opacity-0 group-hover:opacity-100 transition-opacity p-2 bg-red-500 hover:bg-red-600 text-white rounded-lg shadow-lg flex items-center gap-1 text-xs font-medium"
+                        title={`Stop ${agent.name}`}
+                      >
+                        <X size={14} />
+                        Stop
+                      </button>
+                    )}
                   </div>
                 );
               })}
@@ -489,6 +517,105 @@ export function TaskBoard({ realtimeEvents, onTaskClick }: TaskBoardProps) {
         </div>
       )}
 
+      {/* View Modal */}
+      {showViewModal && viewingTask && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-2xl p-6 max-w-2xl w-full max-h-[90vh] overflow-y-auto">
+            <div className="flex items-center justify-between mb-6">
+              <h3 className="text-xl font-bold text-gray-900">{viewingTask.title}</h3>
+              <button
+                onClick={() => setShowViewModal(false)}
+                className="p-2 hover:bg-gray-100 rounded-lg"
+              >
+                <X size={20} />
+              </button>
+            </div>
+
+            <div className="space-y-4">
+              {/* Description */}
+              <div>
+                <label className="block text-sm font-semibold text-gray-700 mb-2">Description</label>
+                <p className="text-sm text-gray-600 whitespace-pre-wrap">{viewingTask.description}</p>
+              </div>
+
+              {/* Agent Notes */}
+              {viewingTask.agentNotes && (
+                <div>
+                  <label className="block text-sm font-semibold text-gray-700 mb-2">Agent Response / Notes</label>
+                  <div className="bg-blue-50 border-l-4 border-blue-500 p-3 rounded-r-lg">
+                    <p className="text-sm text-gray-700 whitespace-pre-wrap">{viewingTask.agentNotes}</p>
+                  </div>
+                </div>
+              )}
+
+              {/* Status & Priority */}
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-sm font-semibold text-gray-700 mb-2">Status</label>
+                  <span className={`inline-block text-xs px-3 py-1.5 rounded-full ${getStatusBadge(viewingTask.status)}`}>
+                    {viewingTask.status.replace('_', ' ')}
+                  </span>
+                </div>
+                <div>
+                  <label className="block text-sm font-semibold text-gray-700 mb-2">Priority</label>
+                  <span className={`inline-block text-xs px-3 py-1.5 rounded-full border-2 ${
+                    viewingTask.priority === 'critical' ? 'border-red-500 text-red-700' :
+                    viewingTask.priority === 'high' ? 'border-orange-500 text-orange-700' :
+                    viewingTask.priority === 'medium' ? 'border-yellow-500 text-yellow-700' :
+                    'border-green-500 text-green-700'
+                  }`}>
+                    {viewingTask.priority}
+                  </span>
+                </div>
+              </div>
+
+              {/* Tags */}
+              {viewingTask.tags && viewingTask.tags.length > 0 && (
+                <div>
+                  <label className="block text-sm font-semibold text-gray-700 mb-2">Tags</label>
+                  <div className="flex flex-wrap gap-2">
+                    {viewingTask.tags.map((tag, idx) => (
+                      <span key={idx} className="text-xs bg-gray-100 text-gray-700 px-3 py-1 rounded-full">
+                        {tag}
+                      </span>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {/* Action Buttons */}
+              <div className="flex gap-3 pt-4">
+                <button
+                  onClick={() => {
+                    if (onTaskClick) {
+                      onTaskClick(viewingTask.id);
+                      setShowViewModal(false);
+                    }
+                  }}
+                  className="flex-1 bg-gradient-to-r from-purple-400 to-blue-400 text-white py-3 rounded-xl font-semibold hover:shadow-lg transition-all flex items-center justify-center gap-2"
+                >
+                  <Activity size={18} />
+                  View Activity
+                </button>
+                <button
+                  onClick={() => openEditModal(viewingTask)}
+                  className="flex-1 bg-blue-500 text-white py-3 rounded-xl font-semibold hover:bg-blue-600 transition-colors flex items-center justify-center gap-2"
+                >
+                  <Edit size={18} />
+                  Edit Task
+                </button>
+                <button
+                  onClick={() => setShowViewModal(false)}
+                  className="px-6 bg-gray-200 text-gray-700 py-3 rounded-xl font-semibold hover:bg-gray-300 transition-colors"
+                >
+                  Close
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* Edit Modal */}
       {showEditModal && editingTask && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
@@ -554,18 +681,6 @@ export function TaskBoard({ realtimeEvents, onTaskClick }: TaskBoardProps) {
               </div>
 
               <div className="flex gap-3 pt-4">
-                <button
-                  onClick={() => {
-                    if (onTaskClick) {
-                      onTaskClick(editingTask.id);
-                      setShowEditModal(false);
-                    }
-                  }}
-                  className="flex-1 bg-gradient-to-r from-purple-400 to-blue-400 text-white py-3 rounded-xl font-semibold hover:shadow-lg transition-all flex items-center justify-center gap-2"
-                >
-                  <Activity size={18} />
-                  View Activity
-                </button>
                 <button
                   onClick={updateTask}
                   className="flex-1 bg-blue-500 text-white py-3 rounded-xl font-semibold hover:bg-blue-600 transition-colors flex items-center justify-center gap-2"

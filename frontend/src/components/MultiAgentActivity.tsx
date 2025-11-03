@@ -4,7 +4,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { useRouter, useSearchParams } from 'next/navigation';
+import { useRouter } from 'next/navigation';
 import { formatDistanceToNow, format, isSameDay, addDays, subDays } from 'date-fns';
 import axios from 'axios';
 import { RealtimeEvent } from '@/hooks/useWebSocket';
@@ -56,7 +56,6 @@ interface MultiAgentActivityProps {
 
 export function MultiAgentActivity({ realtimeEvents, initialAgentId, initialTaskId }: MultiAgentActivityProps) {
   const router = useRouter();
-  const searchParams = useSearchParams();
   const [actions, setActions] = useState<ActionRecord[]>([]);
   const [agents, setAgents] = useState<Map<string, AgentInfo>>(new Map());
   const [filter, setFilter] = useState<'all' | 'messages' | 'tools' | 'tasks'>('all');

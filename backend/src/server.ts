@@ -15,6 +15,7 @@ import { logger } from './core/logger';
 import { EventBus } from './core/event-bus';
 import { PluginRegistry } from './core/plugin-registry';
 import { OpenAIProvider } from './llm/openai-provider';
+import { AnthropicProvider } from './llm/anthropic-provider';
 import { FilesystemMCPServer } from './mcp/filesystem-server';
 import { BrowserMCPServer } from './mcp/browser-server';
 import { TaskManager } from './services/task/task-manager.service';
@@ -45,10 +46,21 @@ async function main() {
     logger.info('Initializing plugin registry...');
     const pluginRegistry = new PluginRegistry(eventBus);
 
-    // Initialize LLM provider
-    logger.info('Registering LLM provider...');
-    const llmProvider = new OpenAIProvider();
-    await pluginRegistry.register(llmProvider);
+    // Initialize LLM providers
+    logger.info('Registering LLM providers...');
+    const openAIProvider = new OpenAIProvider();
+    await pluginRegistry.register(openAIProvider);
+
+    // Register Anthropic provider if API key is available
+    if (process.env.ANTHROPIC_API_KEY) {
+      const anthropicProvider = new AnthropicProvider();
+      await pluginRegistry.register(anthropicProvider);
+    } else {
+      logger.warn('ANTHROPIC_API_KEY not found, Anthropic provider disabled');
+    }
+
+    // Use OpenAI as default for backward compatibility
+    const defaultProvider = openAIProvider;
 
     // Initialize MCP servers
     logger.info('Registering MCP servers...');
@@ -75,7 +87,7 @@ async function main() {
       taskManager,
       sessionManager,
       memoryManager,
-      llmProvider,
+      pluginRegistry,
       [filesystemServer, browserServer],
       {
         port: parseInt(process.env.PORT || '3001'),
