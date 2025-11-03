@@ -1,0 +1,13 @@
+{
+  "server": {
+    "cors": {
+      "origins": ["https://your-domain.com"]
+    }
+  },
+  "agents": {
+    "maxConcurrent": 100
+  },
+  "logging": {
+    "level": "warn"
+  }
+}

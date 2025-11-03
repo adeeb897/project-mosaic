@@ -1,17 +1,11 @@
 # Dependencies
 node_modules/
-.pnp/
-.pnp.js
-
-# Build outputs
-dist/
-build/
-coverage/
-*.tsbuildinfo
-
-# Frontend build artifacts
-public/js/
-public/css/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+package-lock.json
+yarn.lock
+pnpm-lock.yaml
 
 # Environment variables
 .env
@@ -20,43 +14,57 @@ public/css/
 .env.test.local
 .env.production.local
 
-# Note: .env.development is tracked as it contains safe development defaults
+# Build outputs
+dist/
+build/
+.next/
+out/
+
+# TypeScript
+*.tsbuildinfo
+*.log
+
+# Testing
+coverage/
+.nyc_output/
+*.test.js.snap
+
+# IDEs
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+.DS_Store
 
 # Logs
 logs/
 *.log
-npm-debug.log*
-yarn-debug.log*
-yarn-error.log*
 
-# Editor directories and files
-.idea/
-.vscode/*
-!.vscode/extensions.json
-!.vscode/settings.json
-!.vscode/tasks.json
-!.vscode/launch.json
-*.suo
-*.ntvs*
-*.njsproj
-*.sln
-*.sw?
-
-# OS files
-.DS_Store
-Thumbs.db
-
-# Debug
-.nyc_output/
+# Database
+*.db
+*.sqlite
+*.sqlite3
 
 # Temporary files
 tmp/
 temp/
+*.tmp
 
-# Cache
-.npm
-.eslintcache
-.stylelintcache
+# Docker
+.dockerignore
 
-# Generated files
-src/client/generated/
+# OS
+Thumbs.db
+.DS_Store
+
+# Claude
+.claude/*local*
+
+# Misc
+.cache/
+.parcel-cache/
+
+# Agent workspace
+backend/workspace/
+backend/data/

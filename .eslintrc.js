@@ -1,38 +1,24 @@
 module.exports = {
+  root: true,
   parser: '@typescript-eslint/parser',
-  parserOptions: {
-    ecmaVersion: 2020,
-    sourceType: 'module',
-    ecmaFeatures: {
-      jsx: true,
-    },
-    project: './tsconfig.json',
-  },
-  settings: {
-    react: {
-      version: 'detect',
-    },
-  },
+  plugins: ['@typescript-eslint'],
   extends: [
     'eslint:recommended',
     'plugin:@typescript-eslint/recommended',
-    'plugin:react/recommended',
-    'plugin:prettier/recommended',
+    'prettier',
   ],
-  rules: {
-    '@typescript-eslint/explicit-function-return-type': 'off',
-    '@typescript-eslint/explicit-module-boundary-types': 'off',
-    'react/react-in-jsx-scope': 'off',
-    'react/prop-types': 'off',
-    'no-console': ['warn', { allow: ['warn', 'error'] }],
-    '@typescript-eslint/no-unused-vars': ['error', { argsIgnorePattern: '^_' }],
-    '@typescript-eslint/no-explicit-any': 'warn',
-    'prettier/prettier': ['error', {}, { usePrettierrc: true }],
-  },
   env: {
-    browser: true,
     node: true,
-    jest: true,
+    es2022: true,
   },
-  ignorePatterns: ['dist', 'node_modules', 'coverage', '*.js'],
+  parserOptions: {
+    ecmaVersion: 2022,
+    sourceType: 'module',
+  },
+  rules: {
+    '@typescript-eslint/no-explicit-any': 'warn',
+    '@typescript-eslint/no-unused-vars': ['error', { argsIgnorePattern: '^_' }],
+    '@typescript-eslint/explicit-module-boundary-types': 'off',
+    'no-console': ['warn', { allow: ['warn', 'error'] }],
+  },
 };

@@ -1,123 +1,216 @@
 # Contributing to Project Mosaic
 
-Thank you for your interest in contributing to Project Mosaic! This document provides guidelines and instructions for contributing to the project.
+Thank you for your interest in contributing to Project Mosaic! This document provides guidelines and instructions for contributing.
 
-## Code of Conduct
+## Ways to Contribute
 
-By participating in this project, you agree to abide by our [Code of Conduct](CODE_OF_CONDUCT.md).
+- **Bug Reports**: Found a bug? Open an issue with details
+- **Feature Requests**: Have an idea? Share it in discussions
+- **Code Contributions**: Submit pull requests
+- **Documentation**: Improve docs, add examples
+- **Plugins**: Create custom agents, MCP servers, providers
+- **Testing**: Write tests, report issues
 
-## How to Contribute
+## Getting Started
 
-### Reporting Bugs
+### 1. Fork and Clone
 
-If you find a bug, please report it by creating an issue on GitHub. When filing an issue, make sure to answer these questions:
+```bash
+# Fork the repository on GitHub
+git clone https://github.com/your-username/project-mosaic.git
+cd project-mosaic
+```
 
-1. What version of Project Mosaic are you using?
-2. What operating system and processor architecture are you using?
-3. What did you do?
-4. What did you expect to see?
-5. What did you see instead?
+### 2. Set Up Development Environment
 
-### Suggesting Enhancements
+```bash
+# Install dependencies
+npm install
 
-If you have an idea for a new feature or an enhancement to an existing feature, please create an issue on GitHub. Provide as much detail as possible about your suggestion, including:
+# Set up environment
+cp .env.example .env
+# Edit .env with your API keys
 
-1. A clear and descriptive title
-2. A detailed description of the proposed feature
-3. Any relevant examples or mockups
-4. An explanation of why this feature would be useful
+# Start development services
+docker-compose up -d
 
-### Pull Requests
+# Run migrations
+npm run db:migrate
 
-We actively welcome your pull requests!
+# Start development server
+npm run dev
+```
 
-1. Fork the repo and create your branch from `main`.
-2. If you've added code that should be tested, add tests.
-3. If you've changed APIs, update the documentation.
-4. Ensure the test suite passes.
-5. Make sure your code lints.
-6. Submit your pull request!
+### 3. Create a Branch
 
-### Development Workflow
-
-1. Clone the repository:
-   ```bash
-   git clone https://github.com/your-username/project-mosaic.git
-   cd project-mosaic
-   ```
-
-2. Install dependencies:
-   ```bash
-   npm install
-   ```
-
-3. Create a new branch:
-   ```bash
-   git checkout -b feature/your-feature-name
-   ```
-
-4. Make your changes and commit them:
-   ```bash
-   git commit -m "Description of your changes"
-   ```
-
-5. Push your branch to GitHub:
-   ```bash
-   git push origin feature/your-feature-name
-   ```
-
-6. Open a pull request on GitHub.
+```bash
+git checkout -b feature/your-feature-name
+# or
+git checkout -b fix/bug-description
+```
 
 ## Development Guidelines
 
 ### Code Style
 
-We use ESLint and Prettier to enforce a consistent code style. Before submitting your code, make sure it follows our style guidelines by running:
+- Use TypeScript for all code
+- Follow existing code style (Prettier + ESLint)
+- Write meaningful variable and function names
+- Add comments for complex logic
 
 ```bash
-npm run lint
+# Format code
 npm run format
+
+# Lint code
+npm run lint
+
+# Type check
+npm run typecheck
+```
+
+### Commit Messages
+
+Follow [Conventional Commits](https://www.conventionalcommits.org/):
+
+```
+feat: add new agent capability
+fix: resolve sandbox timeout issue
+docs: update deployment guide
+refactor: improve event bus performance
+test: add tests for MCP servers
 ```
 
 ### Testing
 
-All new features and bug fixes should include tests. We use Jest for testing. Run the tests with:
+- Write tests for new features
+- Ensure existing tests pass
+- Aim for good test coverage
 
 ```bash
-npm test
+# Run all tests
+npm run test
+
+# Run tests in watch mode
+npm run test:watch
+
+# Check coverage
+npm run test:coverage
 ```
 
-### Documentation
+## Pull Request Process
 
-- All new features should include documentation.
-- Update the README.md if necessary.
-- Add JSDoc comments to all functions and classes.
+### 1. Before Submitting
 
-### Commit Messages
+- [ ] Code follows style guidelines
+- [ ] All tests pass
+- [ ] New tests added for new features
+- [ ] Documentation updated
+- [ ] No merge conflicts
+- [ ] Commits are clean and meaningful
 
-- Use the present tense ("Add feature" not "Added feature")
-- Use the imperative mood ("Move cursor to..." not "Moves cursor to...")
-- Limit the first line to 72 characters or less
-- Reference issues and pull requests liberally after the first line
+### 2. Submit PR
 
-## Module Development
+- Fill out the PR template completely
+- Link related issues
+- Add screenshots/videos if UI changes
+- Request review from maintainers
 
-If you're developing a new module for Project Mosaic, please follow these additional guidelines:
+### 3. Code Review
 
-1. Create a new directory in the appropriate module type directory (e.g., `src/modules/personality` for personality modules).
-2. Implement the required interfaces for your module type.
-3. Include comprehensive documentation.
-4. Add tests for your module.
-5. Create an example configuration.
+- Address review comments
+- Keep discussion constructive
+- Be patient and respectful
 
-For more details, see the [Module Development Guide](docs/module-development.md).
+### 4. After Approval
+
+- Squash commits if requested
+- Maintainers will merge when ready
+
+## Plugin Development
+
+See [EXTENSIBILITY.md](./EXTENSIBILITY.md) for detailed plugin development guide.
+
+### Quick Start
+
+```bash
+# Create plugin directory
+mkdir -p plugins/my-plugin
+
+# Create plugin
+cd plugins/my-plugin
+npm init -y
+
+# Implement plugin interface
+# See examples in plugins/examples/
+```
+
+### Plugin Checklist
+
+- [ ] Implements correct plugin interface
+- [ ] Includes package.json with metadata
+- [ ] Has README with usage instructions
+- [ ] Includes tests
+- [ ] Documented configuration options
+- [ ] Example usage provided
+
+## Documentation
+
+### Updating Docs
+
+- Keep README.md up-to-date
+- Update ARCHITECTURE.md for system changes
+- Update DEPLOYMENT.md for deployment changes
+- Add examples to EXTENSIBILITY.md
+
+### Writing Style
+
+- Clear and concise
+- Include code examples
+- Use proper formatting
+- Add diagrams if helpful
+
+## Community Guidelines
+
+### Code of Conduct
+
+- Be respectful and inclusive
+- Welcome newcomers
+- Focus on constructive feedback
+- No harassment or discrimination
+
+### Communication
+
+- **GitHub Issues**: Bug reports, feature requests
+- **GitHub Discussions**: Questions, ideas, help
+- **Discord**: Real-time chat (coming soon)
+
+## Release Process
+
+Maintainers handle releases:
+
+1. Update version in package.json
+2. Update CHANGELOG.md
+3. Create release branch
+4. Tag release
+5. Publish to npm (if applicable)
+6. Announce release
 
 ## License
 
-By contributing to Project Mosaic, you agree that your contributions will be licensed under the project's [MIT License](LICENSE).
+By contributing, you agree that your contributions will be licensed under the GNU GPL-3.0 License.
 
 ## Questions?
 
-If you have any questions about contributing, please open an issue or reach out to the maintainers.
+- Check existing issues and discussions
+- Ask in GitHub Discussions
+- Join our Discord (coming soon)
 
-Thank you for your contribution!
+## Recognition
+
+Contributors will be:
+- Listed in README.md
+- Credited in release notes
+- Celebrated in the community
+
+Thank you for contributing to Project Mosaic!

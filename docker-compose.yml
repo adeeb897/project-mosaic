@@ -1,73 +1,116 @@
 version: '3.8'
 
 services:
-  app:
-    build:
-      context: .
-      dockerfile: Dockerfile
-      target: build
-    container_name: project-mosaic-app
-    ports:
-      - "3000:3000"
-    volumes:
-      - .:/app
-      - /app/node_modules
+  # PostgreSQL Database
+  postgres:
+    image: postgres:16-alpine
+    container_name: mosaic-postgres
     environment:
-      - NODE_ENV=development
-      - PORT=3000
-      - MONGODB_URI=mongodb://mongodb:27017/project-mosaic
-      - REDIS_URI=redis://redis:6379
-      - JWT_SECRET=dev_jwt_secret
-    depends_on:
-      - mongodb
-      - redis
-    command: npm run dev
-    restart: unless-stopped
-
-  mongodb:
-    image: mongo:6
-    container_name: project-mosaic-mongodb
+      POSTGRES_DB: mosaic
+      POSTGRES_USER: mosaic
+      POSTGRES_PASSWORD: mosaic
     ports:
-      - "27017:27017"
+      - "5432:5432"
     volumes:
-      - mongodb_data:/data/db
-    environment:
-      - MONGO_INITDB_DATABASE=project-mosaic
-    restart: unless-stopped
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U mosaic"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
 
+  # Redis for Event Bus
   redis:
-    image: redis:7
-    container_name: project-mosaic-redis
+    image: redis:7-alpine
+    container_name: mosaic-redis
     ports:
       - "6379:6379"
     volumes:
       - redis_data:/data
+    command: redis-server --appendonly yes
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # Ollama for Local LLM (Optional)
+  ollama:
+    image: ollama/ollama:latest
+    container_name: mosaic-ollama
+    ports:
+      - "11434:11434"
+    volumes:
+      - ollama_data:/root/.ollama
+    command: serve
+    # Uncomment to pull models on startup
+    # entrypoint: ["/bin/sh", "-c"]
+    # command:
+    #   - |
+    #     ollama serve &
+    #     sleep 5
+    #     ollama pull llama3.2
+    #     wait
+
+  # Backend API Server
+  backend:
+    build:
+      context: .
+      dockerfile: backend/Dockerfile
+    container_name: mosaic-backend
+    ports:
+      - "3000:3000"
+    environment:
+      - NODE_ENV=development
+      - PORT=3000
+      - DATABASE_URL=postgresql://mosaic:mosaic@postgres:5432/mosaic
+      - REDIS_URL=redis://redis:6379
+      - LLM_PROVIDER=${LLM_PROVIDER:-openai}
+      - OPENAI_API_KEY=${OPENAI_API_KEY}
+      - ANTHROPIC_API_KEY=${ANTHROPIC_API_KEY}
+      - OLLAMA_HOST=http://ollama:11434
+      - SANDBOX_PROVIDER=${SANDBOX_PROVIDER:-docker}
+      - DOCKER_HOST=unix:///var/run/docker.sock
+      - E2B_API_KEY=${E2B_API_KEY}
+      - LANGSMITH_API_KEY=${LANGSMITH_API_KEY}
+      - LANGSMITH_PROJECT=${LANGSMITH_PROJECT:-mosaic-dev}
+      - LANGSMITH_TRACING=${LANGSMITH_TRACING:-false}
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    volumes:
+      - ./backend:/app
+      - /app/node_modules
+      - /var/run/docker.sock:/var/run/docker.sock  # For Docker sandbox
+    command: npm run dev
     restart: unless-stopped
 
-  mongo-express:
-    image: mongo-express
-    container_name: project-mosaic-mongo-express
+  # Frontend Dashboard
+  frontend:
+    build:
+      context: .
+      dockerfile: frontend/Dockerfile
+    container_name: mosaic-frontend
     ports:
-      - "8081:8081"
+      - "3001:3000"
     environment:
-      - ME_CONFIG_MONGODB_SERVER=mongodb
-      - ME_CONFIG_MONGODB_PORT=27017
-      - ME_CONFIG_MONGODB_ENABLE_ADMIN=true
+      - NEXT_PUBLIC_API_URL=http://localhost:3000
+      - NEXT_PUBLIC_WS_URL=ws://localhost:3000
     depends_on:
-      - mongodb
-    restart: unless-stopped
-
-  redis-commander:
-    image: rediscommander/redis-commander
-    container_name: project-mosaic-redis-commander
-    ports:
-      - "8082:8081"
-    environment:
-      - REDIS_HOSTS=local:redis:6379
-    depends_on:
-      - redis
+      - backend
+    volumes:
+      - ./frontend:/app
+      - /app/node_modules
+      - /app/.next
+    command: npm run dev
     restart: unless-stopped
 
 volumes:
-  mongodb_data:
+  postgres_data:
+    driver: local
   redis_data:
+    driver: local
+  ollama_data:
+    driver: local
