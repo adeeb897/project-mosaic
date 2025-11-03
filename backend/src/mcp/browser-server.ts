@@ -189,6 +189,24 @@ export class BrowserMCPServer implements MCPServerPlugin {
         },
       },
       {
+        name: 'find_interactive_elements',
+        description: 'Discover interactive elements on the page (buttons, links, inputs, etc.) with their selectors. Use this BEFORE attempting to click or type to find the correct selectors.',
+        inputSchema: {
+          type: 'object',
+          properties: {
+            sessionId: {
+              type: 'string',
+              description: 'Browser session ID',
+            },
+            elementType: {
+              type: 'string',
+              description: 'Optional: Filter by element type (button, input, link, select, textarea). If not specified, returns all interactive elements.',
+            },
+          },
+          required: ['sessionId'],
+        },
+      },
+      {
         name: 'close_session',
         description: 'Close a browser session',
         inputSchema: {
@@ -232,6 +250,9 @@ export class BrowserMCPServer implements MCPServerPlugin {
 
         case 'evaluate_js':
           return await this.evaluateJS(params.sessionId, params.script);
+
+        case 'find_interactive_elements':
+          return await this.findInteractiveElements(params.sessionId, params.elementType);
 
         case 'close_session':
           return await this.closeSession(params.sessionId);
@@ -364,26 +385,103 @@ export class BrowserMCPServer implements MCPServerPlugin {
       };
     }
 
-    await session.page.waitForSelector(selector, { timeout: 5000 });
-    await session.page.click(selector);
+    try {
+      await session.page.waitForSelector(selector, { timeout: 5000 });
 
-    if (waitAfter > 0) {
-      await new Promise((resolve) => setTimeout(resolve, waitAfter));
-    }
+      // Get element position before clicking for indicator
+      const elementRect = await session.page.$eval(selector, (el) => {
+        const rect = el.getBoundingClientRect();
+        return {
+          x: rect.left + rect.width / 2,
+          y: rect.top + rect.height / 2,
+          width: rect.width,
+          height: rect.height
+        };
+      });
 
-    session.lastActivityAt = new Date();
+      await session.page.click(selector);
 
-    // Auto-capture screenshot after interaction
-    const screenshotResult = await this.captureScreenshot(sessionId, false);
+      if (waitAfter > 0) {
+        await new Promise((resolve) => setTimeout(resolve, waitAfter));
+      }
 
-    return {
-      success: true,
-      data: {
+      // Add visual click indicator
+      await session.page.evaluate((rect) => {
+        // @ts-ignore - document is available in browser context
+        const indicator = document.createElement('div');
+        indicator.id = 'click-indicator-mosaic';
+        indicator.style.cssText = `
+          position: fixed;
+          left: ${rect.x - 20}px;
+          top: ${rect.y - 20}px;
+          width: 40px;
+          height: 40px;
+          border: 3px solid #ff0000;
+          border-radius: 50%;
+          background: rgba(255, 0, 0, 0.2);
+          pointer-events: none;
+          z-index: 999999;
+          animation: pulse 0.6s ease-out;
+        `;
+
+        // @ts-ignore - document is available in browser context
+        const style = document.createElement('style');
+        style.textContent = `
+          @keyframes pulse {
+            0% { transform: scale(0.5); opacity: 1; }
+            100% { transform: scale(1.5); opacity: 0; }
+          }
+        `;
+        // @ts-ignore - document is available in browser context
+        document.head.appendChild(style);
+        // @ts-ignore - document is available in browser context
+        document.body.appendChild(indicator);
+      }, elementRect);
+
+      session.lastActivityAt = new Date();
+
+      // Auto-capture screenshot after interaction with indicator visible
+      const screenshotResult = await this.captureScreenshot(sessionId, false);
+
+      // Remove the indicator after screenshot
+      await session.page.evaluate(() => {
+        // @ts-ignore - document is available in browser context
+        const indicator = document.getElementById('click-indicator-mosaic');
+        if (indicator) indicator.remove();
+      });
+
+      return {
+        success: true,
+        data: {
+          selector,
+          clickPosition: elementRect,
+          screenshot: screenshotResult.data,
+          message: 'Element clicked successfully',
+        },
+      };
+    } catch (error: any) {
+      // Capture screenshot showing current page state for debugging
+      const screenshotResult = await this.captureScreenshot(sessionId, false);
+
+      session.lastActivityAt = new Date();
+
+      this.context?.logger.error('Failed to click element', {
+        sessionId,
         selector,
-        screenshot: screenshotResult.data,
-        message: 'Element clicked successfully',
-      },
-    };
+        error: error.message,
+      });
+
+      return {
+        success: false,
+        error: `Failed to click element "${selector}": ${error.message}`,
+        data: {
+          selector,
+          screenshot: screenshotResult.data,
+          currentUrl: session.page.url(),
+          currentTitle: await session.page.title(),
+        },
+      };
+    }
   }
 
   private async typeText(
@@ -400,29 +498,53 @@ export class BrowserMCPServer implements MCPServerPlugin {
       };
     }
 
-    await session.page.waitForSelector(selector, { timeout: 5000 });
+    try {
+      await session.page.waitForSelector(selector, { timeout: 5000 });
 
-    if (clearFirst) {
-      await session.page.click(selector, { clickCount: 3 }); // Select all
-      await session.page.keyboard.press('Backspace');
-    }
+      if (clearFirst) {
+        await session.page.click(selector, { clickCount: 3 }); // Select all
+        await session.page.keyboard.press('Backspace');
+      }
 
-    await session.page.type(selector, text);
+      await session.page.type(selector, text);
 
-    session.lastActivityAt = new Date();
+      session.lastActivityAt = new Date();
 
-    // Auto-capture screenshot after interaction
-    const screenshotResult = await this.captureScreenshot(sessionId, false);
+      // Auto-capture screenshot after interaction
+      const screenshotResult = await this.captureScreenshot(sessionId, false);
 
-    return {
-      success: true,
-      data: {
+      return {
+        success: true,
+        data: {
+          selector,
+          text,
+          screenshot: screenshotResult.data,
+          message: 'Text typed successfully',
+        },
+      };
+    } catch (error: any) {
+      // Capture screenshot showing current page state for debugging
+      const screenshotResult = await this.captureScreenshot(sessionId, false);
+
+      session.lastActivityAt = new Date();
+
+      this.context?.logger.error('Failed to type text', {
+        sessionId,
         selector,
-        text,
-        screenshot: screenshotResult.data,
-        message: 'Text typed successfully',
-      },
-    };
+        error: error.message,
+      });
+
+      return {
+        success: false,
+        error: `Failed to type text in "${selector}": ${error.message}`,
+        data: {
+          selector,
+          screenshot: screenshotResult.data,
+          currentUrl: session.page.url(),
+          currentTitle: await session.page.title(),
+        },
+      };
+    }
   }
 
   private async getPageContent(
@@ -448,12 +570,16 @@ export class BrowserMCPServer implements MCPServerPlugin {
 
     session.lastActivityAt = new Date();
 
+    // Capture screenshot to show what content was extracted
+    const screenshotResult = await this.captureScreenshot(sessionId, false);
+
     return {
       success: true,
       data: {
         content,
         url: session.page.url(),
         title: await session.page.title(),
+        screenshot: screenshotResult.data,
       },
     };
   }
@@ -471,11 +597,189 @@ export class BrowserMCPServer implements MCPServerPlugin {
 
     session.lastActivityAt = new Date();
 
+    // Capture screenshot after JS execution to show result
+    const screenshotResult = await this.captureScreenshot(sessionId, false);
+
     return {
       success: true,
       data: {
         result,
         url: session.page.url(),
+        screenshot: screenshotResult.data,
+      },
+    };
+  }
+
+  private async findInteractiveElements(
+    sessionId: string,
+    elementType?: string
+  ): Promise<MCPToolResult> {
+    const session = this.sessions.get(sessionId);
+    if (!session) {
+      return {
+        success: false,
+        error: 'Invalid session ID',
+      };
+    }
+
+    // Find interactive elements on the page
+    // Use 'any' types for browser context code where DOM APIs are available
+    const elements = await session.page.evaluate((filterType: any) => {
+      // Declare browser globals to avoid TypeScript errors
+      const window = (globalThis as any).window || (globalThis as any);
+      const document = (globalThis as any).document;
+
+      const results: any[] = [];
+
+      // Helper to check if element is visible
+      const isVisible = (el: any): boolean => {
+        const style = window.getComputedStyle(el);
+        return (
+          style.display !== 'none' &&
+          style.visibility !== 'hidden' &&
+          style.opacity !== '0'
+        );
+      };
+
+      // Helper to generate a good selector for an element
+      const generateSelector = (el: any): string => {
+        // Prefer ID
+        if (el.id) return `#${el.id}`;
+
+        // Try name attribute
+        const name = el.getAttribute('name');
+        if (name) return `[name="${name}"]`;
+
+        // Try data attributes
+        const dataTestId = el.getAttribute('data-testid');
+        if (dataTestId) return `[data-testid="${dataTestId}"]`;
+
+        // Try class combination with tag
+        if (el.className && typeof el.className === 'string') {
+          const classes = el.className
+            .split(' ')
+            .filter((c: any) => c.trim())
+            .slice(0, 3)
+            .join('.');
+          if (classes) return `${el.tagName.toLowerCase()}.${classes}`;
+        }
+
+        // Fall back to tag name with position
+        const siblings = Array.from(el.parentElement?.children || []).filter(
+          (sibling: any) => sibling.tagName === el.tagName
+        );
+        const index = siblings.indexOf(el);
+        if (siblings.length > 1) {
+          return `${el.tagName.toLowerCase()}:nth-of-type(${index + 1})`;
+        }
+
+        return el.tagName.toLowerCase();
+      };
+
+      // Get text content, limited to 100 chars
+      const getText = (el: any): string => {
+        const text = (el.textContent || '').trim();
+        return text.length > 100 ? text.substring(0, 100) + '...' : text;
+      };
+
+      // Find buttons
+      if (!filterType || filterType === 'button') {
+        document.querySelectorAll('button, input[type="button"], input[type="submit"]').forEach((el: any) => {
+          results.push({
+            type: 'button',
+            selector: generateSelector(el),
+            text: getText(el),
+            id: el.id || undefined,
+            name: el.getAttribute('name') || undefined,
+            value: el.value || undefined,
+            visible: isVisible(el),
+          });
+        });
+      }
+
+      // Find input fields
+      if (!filterType || filterType === 'input') {
+        document.querySelectorAll('input:not([type="button"]):not([type="submit"])').forEach((el: any) => {
+          results.push({
+            type: 'input',
+            selector: generateSelector(el),
+            text: el.placeholder || '',
+            id: el.id || undefined,
+            name: el.name || undefined,
+            placeholder: el.placeholder || undefined,
+            value: el.value || undefined,
+            visible: isVisible(el),
+          });
+        });
+      }
+
+      // Find textareas
+      if (!filterType || filterType === 'textarea') {
+        document.querySelectorAll('textarea').forEach((el: any) => {
+          results.push({
+            type: 'textarea',
+            selector: generateSelector(el),
+            text: el.placeholder || '',
+            id: el.id || undefined,
+            name: el.name || undefined,
+            placeholder: el.placeholder || undefined,
+            value: el.value || undefined,
+            visible: isVisible(el),
+          });
+        });
+      }
+
+      // Find links
+      if (!filterType || filterType === 'link') {
+        document.querySelectorAll('a[href]').forEach((el: any) => {
+          results.push({
+            type: 'link',
+            selector: generateSelector(el),
+            text: getText(el),
+            id: el.id || undefined,
+            href: el.href || undefined,
+            visible: isVisible(el),
+          });
+        });
+      }
+
+      // Find select dropdowns
+      if (!filterType || filterType === 'select') {
+        document.querySelectorAll('select').forEach((el: any) => {
+          results.push({
+            type: 'select',
+            selector: generateSelector(el),
+            text: el.options[el.selectedIndex]?.text || '',
+            id: el.id || undefined,
+            name: el.name || undefined,
+            value: el.value || undefined,
+            visible: isVisible(el),
+          });
+        });
+      }
+
+      // Return only visible elements by default, sorted by position on page
+      return results.filter((el: any) => el.visible);
+    }, elementType);
+
+    session.lastActivityAt = new Date();
+
+    // Capture screenshot to show the elements
+    const screenshotResult = await this.captureScreenshot(sessionId, false);
+
+    this.context?.logger.info('Found interactive elements', {
+      sessionId,
+      elementType: elementType || 'all',
+      count: elements.length,
+    });
+
+    return {
+      success: true,
+      data: {
+        elements,
+        count: elements.length,
+        url: session.page.url(),
+        screenshot: screenshotResult.data,
       },
     };
   }

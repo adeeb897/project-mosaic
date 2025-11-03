@@ -10,7 +10,8 @@ import { EventBus } from '../core/event-bus';
 import { TaskManager } from '../services/task/task-manager.service';
 import { SessionManager } from '../services/session/session-manager.service';
 import { MemoryManager } from '../services/memory/memory-manager.service';
-import { LLMProviderPlugin, MCPServerPlugin } from '@mosaic/shared';
+import { PluginRegistry } from '../core/plugin-registry';
+import { MCPServerPlugin } from '@mosaic/shared';
 import { createAgentRoutes } from './routes/agent.routes';
 import { createTaskRoutes } from './routes/task.routes';
 import { createSessionRoutes } from './routes/session.routes';
@@ -32,7 +33,7 @@ export class APIServer {
   private taskManager: TaskManager;
   private sessionManager: SessionManager;
   private memoryManager: MemoryManager;
-  private llmProvider: LLMProviderPlugin;
+  private pluginRegistry: PluginRegistry;
   private mcpServers: MCPServerPlugin[];
   private config: ServerConfig;
 
@@ -41,7 +42,7 @@ export class APIServer {
     taskManager: TaskManager,
     sessionManager: SessionManager,
     memoryManager: MemoryManager,
-    llmProvider: LLMProviderPlugin,
+    pluginRegistry: PluginRegistry,
     mcpServers: MCPServerPlugin[],
     config: ServerConfig = {}
   ) {
@@ -49,7 +50,7 @@ export class APIServer {
     this.taskManager = taskManager;
     this.sessionManager = sessionManager;
     this.memoryManager = memoryManager;
-    this.llmProvider = llmProvider;
+    this.pluginRegistry = pluginRegistry;
     this.mcpServers = mcpServers;
     this.config = config;
 
@@ -104,7 +105,7 @@ export class APIServer {
     this.app.use('/api/agents', createAgentRoutes(
       this.taskManager,
       this.sessionManager,
-      this.llmProvider,
+      this.pluginRegistry,
       this.mcpServers
     ));
     this.app.use('/api/tasks', createTaskRoutes(this.taskManager));

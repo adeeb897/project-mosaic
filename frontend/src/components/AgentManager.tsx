@@ -20,6 +20,7 @@ import axios from 'axios';
 import { RealtimeEvent } from '@/hooks/useWebSocket';
 import { getApiUrl } from '@/config/api';
 import { AgentConfig } from './AgentConfig';
+import { AgentChatCard } from './AgentChatCard';
 
 interface Agent {
   id: string;
@@ -29,7 +30,10 @@ interface Agent {
   sessionId: string;
   createdAt: string;
   config: {
-    llm: {
+    llmProvider?: string;
+    model?: string;
+    llm?: {
+      provider: string;
       model: string;
     }
   };
@@ -57,22 +61,39 @@ interface MCPServer {
   tools: Array<{ name: string; description: string }>;
 }
 
+interface ModelProvider {
+  id: string;
+  name: string;
+  models: Array<{
+    id: string;
+    name: string;
+    contextWindow: number;
+    supportsVision: boolean;
+    supportsFunctionCalling: boolean;
+  }>;
+}
+
 export function AgentManager({ onSessionSelect, realtimeEvents }: AgentManagerProps) {
   const [agents, setAgents] = useState<Agent[]>([]);
   const [loading, setLoading] = useState(true);
   const [showCreateForm, setShowCreateForm] = useState(false);
   const [selectedAgentId, setSelectedAgentId] = useState<string | null>(null);
   const [mcpServers, setMcpServers] = useState<MCPServer[]>([]);
+  const [modelProviders, setModelProviders] = useState<ModelProvider[]>([]);
   const [currentTasks, setCurrentTasks] = useState<Record<string, Task>>({});
   const [formData, setFormData] = useState({
     name: '',
+    llmProvider: '',
+    model: '',
     mcpServerNames: [] as string[],
+    useE2B: false,
   });
 
-  // Fetch agents and MCP servers
+  // Fetch agents, MCP servers, and available models
   useEffect(() => {
     fetchAgents();
     fetchMcpServers();
+    fetchModels();
   }, []);
 
   // Update agents from realtime events
@@ -126,20 +147,61 @@ export function AgentManager({ onSessionSelect, realtimeEvents }: AgentManagerPr
     }
   };
 
+  const fetchModels = async () => {
+    try {
+      const response = await axios.get(getApiUrl('/api/agents/models'));
+      const providers = response.data.data;
+      setModelProviders(providers);
+
+      // Set default provider and model if available
+      if (providers.length > 0 && !formData.llmProvider) {
+        const defaultProvider = providers[0];
+        setFormData(prev => ({
+          ...prev,
+          llmProvider: defaultProvider.id,
+          model: defaultProvider.models[0]?.id || '',
+        }));
+      }
+    } catch (error) {
+      console.error('Failed to fetch models:', error);
+    }
+  };
+
   const createAgent = async () => {
     try {
       const payload = {
         name: formData.name,
+        llmProvider: formData.llmProvider,
+        model: formData.model,
         mcpServerNames: formData.mcpServerNames,
+        useE2B: formData.useE2B,
       };
 
       const response = await axios.post(getApiUrl('/api/agents'), payload);
       const newAgent = response.data.data;
       setAgents([...agents, newAgent]);
       setShowCreateForm(false);
-      setFormData({ name: '', mcpServerNames: [] });
+
+      // Reset form with default provider/model
+      const defaultProvider = modelProviders[0];
+      setFormData({
+        name: '',
+        llmProvider: defaultProvider?.id || '',
+        model: defaultProvider?.models[0]?.id || '',
+        mcpServerNames: [],
+        useE2B: false,
+      });
     } catch (error: any) {
       alert(`Failed to create agent: ${error.response?.data?.error || error.message}`);
+    }
+  };
+
+  const startAgent = async (id: string) => {
+    try {
+      await axios.post(getApiUrl(`/api/agents/${id}/start`));
+      fetchAgents();
+    } catch (error: any) {
+      alert(`Failed to start agent: ${error.response?.data?.error || error.message}`);
     }
   };
 
@@ -224,6 +286,64 @@ export function AgentManager({ onSessionSelect, realtimeEvents }: AgentManagerPr
               />
             </div>
 
+            <div className="grid grid-cols-2 gap-4">
+              <div>
+                <label className="block text-sm font-semibold text-gray-700 mb-2">LLM Provider</label>
+                <select
+                  value={formData.llmProvider}
+                  onChange={(e) => {
+                    const selectedProvider = modelProviders.find(p => p.id === e.target.value);
+                    setFormData({
+                      ...formData,
+                      llmProvider: e.target.value,
+                      model: selectedProvider?.models[0]?.id || '',
+                    });
+                  }}
+                  className="input"
+                >
+                  {modelProviders.map((provider) => (
+                    <option key={provider.id} value={provider.id}>
+                      {provider.name}
+                    </option>
+                  ))}
+                </select>
+              </div>
+
+              <div>
+                <label className="block text-sm font-semibold text-gray-700 mb-2">Model</label>
+                <select
+                  value={formData.model}
+                  onChange={(e) => setFormData({ ...formData, model: e.target.value })}
+                  className="input"
+                >
+                  {modelProviders
+                    .find(p => p.id === formData.llmProvider)
+                    ?.models.map((model) => (
+                      <option key={model.id} value={model.id}>
+                        {model.name}
+                        {model.supportsVision && ' 👁️'}
+                      </option>
+                    ))}
+                </select>
+                {formData.model && (
+                  <p className="text-xs text-gray-500 mt-1">
+                    {(() => {
+                      const selectedModel = modelProviders
+                        .find(p => p.id === formData.llmProvider)
+                        ?.models.find(m => m.id === formData.model);
+                      return selectedModel ? (
+                        <>
+                          {(selectedModel.contextWindow / 1000).toFixed(0)}k context
+                          {selectedModel.supportsVision && ' • Vision'}
+                          {selectedModel.supportsFunctionCalling && ' • Function Calling'}
+                        </>
+                      ) : null;
+                    })()}
+                  </p>
+                )}
+              </div>
+            </div>
+
             <div>
               <label className="block text-sm font-semibold text-gray-700 mb-2">
                 Tools & Capabilities
@@ -274,6 +394,30 @@ export function AgentManager({ onSessionSelect, realtimeEvents }: AgentManagerPr
               </p>
             </div>
 
+            {/* E2B Sandbox Option */}
+            <div>
+              <label className="flex items-start gap-3 p-4 bg-gradient-to-br from-green-50 to-blue-50 rounded-xl border-2 border-green-200 cursor-pointer hover:border-green-300 transition-colors">
+                <input
+                  type="checkbox"
+                  checked={formData.useE2B}
+                  onChange={(e) => setFormData({ ...formData, useE2B: e.target.checked })}
+                  className="mt-1 w-5 h-5 text-green-600 rounded focus:ring-green-500"
+                />
+                <div className="flex-1">
+                  <div className="flex items-center gap-2">
+                    <span className="font-semibold text-gray-900">Enable E2B Sandbox</span>
+                    <span className="px-2 py-0.5 text-xs bg-green-600 text-white rounded-full">Safe Code Execution</span>
+                  </div>
+                  <div className="text-sm text-gray-600 mt-1">
+                    Run Python code in a secure, isolated cloud sandbox. Enables data analysis, calculations, and file processing with complete safety.
+                  </div>
+                  <div className="text-xs text-gray-500 mt-2">
+                    Requires E2B_API_KEY in environment. Get yours at <a href="https://e2b.dev" target="_blank" rel="noopener noreferrer" className="text-blue-600 hover:underline">e2b.dev</a>
+                  </div>
+                </div>
+              </label>
+            </div>
+
             <div className="flex gap-3 pt-2">
               <button onClick={createAgent} disabled={!formData.name} className="btn-primary">
                 Create Agent
@@ -303,7 +447,23 @@ export function AgentManager({ onSessionSelect, realtimeEvents }: AgentManagerPr
           </div>
         </div>
       ) : (
-        <div className="grid gap-4">
+        <div className="grid grid-cols-1 lg:grid-cols-2 xl:grid-cols-3 gap-4">
+          {agents.map((agent) => (
+            <AgentChatCard
+              key={agent.id}
+              agent={agent}
+              onStart={startAgent}
+              onStop={pauseAgent}
+              onDelete={deleteAgent}
+              currentTask={currentTasks[agent.id]}
+            />
+          ))}
+        </div>
+      )}
+
+      {/* Backup: Old card format - DELETE THESE LINES */}
+      {false && (
+        <div className="hidden">
           {agents.map((agent) => (
             <div key={agent.id} className="card group">
               <div className="flex justify-between items-start gap-4">
@@ -325,7 +485,14 @@ export function AgentManager({ onSessionSelect, realtimeEvents }: AgentManagerPr
                   </div>
 
                   <div className="flex items-center gap-2 text-xs text-gray-500">
-                    <span className="px-2 py-1 bg-white/60 rounded-lg">Model: {agent.config.llm.model}</span>
+                    <span className="px-2 py-1 bg-white/60 rounded-lg">
+                      Model: {agent.config?.llm?.model || agent.config?.model || 'N/A'}
+                    </span>
+                    {agent.config?.llm?.provider && (
+                      <span className="px-2 py-1 bg-white/60 rounded-lg">
+                        {agent.config.llm.provider.replace('-provider', '')}
+                      </span>
+                    )}
                     <span className="px-2 py-1 bg-white/60 rounded-lg">
                       ID: {agent.id.slice(0, 8)}
                     </span>

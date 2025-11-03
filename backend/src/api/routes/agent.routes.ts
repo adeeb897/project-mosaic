@@ -3,7 +3,7 @@
  */
 
 import { Router } from 'express';
-import { TaskOrientedAgent } from '../../agents/task-oriented-agent';
+import { LangGraphAgent } from '../../agents/langgraph-agent';
 import { TaskManager } from '../../services/task/task-manager.service';
 import { SessionManager } from '../../services/session/session-manager.service';
 import { LLMProviderPlugin, MCPServerPlugin } from '@mosaic/shared';
@@ -11,24 +11,46 @@ import { getMemoryManager } from '../../services/memory/memory-manager.service';
 import { EventBus } from '../../core/event-bus';
 import { getDatabase } from '../../persistence/database';
 import { AgentRepository } from '../../persistence/repositories/agent.repository';
+import { PluginRegistry } from '../../core/plugin-registry';
 
 export function createAgentRoutes(
   taskManager: TaskManager,
   sessionManager: SessionManager,
-  llmProvider: LLMProviderPlugin,
+  pluginRegistry: PluginRegistry,
   mcpServers: MCPServerPlugin[]
 ) {
   const router = Router();
 
   // Store active agents
-  const activeAgents = new Map<string, TaskOrientedAgent>();
+  const activeAgents = new Map<string, LangGraphAgent>();
 
   // Initialize agent repository
   const db = getDatabase();
   const agentRepo = new AgentRepository(db.getDb());
 
+  // Helper function to get LLM provider from registry
+  const getLLMProvider = (providerName?: string): LLMProviderPlugin => {
+    const providers = pluginRegistry.getByType('llm-provider') as LLMProviderPlugin[];
+
+    if (!providers || providers.length === 0) {
+      throw new Error('No LLM providers available');
+    }
+
+    // If provider name specified, find it
+    if (providerName) {
+      const provider = providers.find(p => p.name === providerName);
+      if (!provider) {
+        throw new Error(`LLM provider '${providerName}' not found. Available: ${providers.map(p => p.name).join(', ')}`);
+      }
+      return provider;
+    }
+
+    // Default to first provider (OpenAI)
+    return providers[0];
+  };
+
   // Restore agents from database on startup
-  const restoreAgents = () => {
+  const restoreAgents = async () => {
     try {
       const savedAgents = agentRepo.findAll();
 
@@ -46,27 +68,39 @@ export function createAgentRoutes(
 
         // Restore MCP servers from config if available
         let restoredMcpServers = mcpServers;
+        let llmProviderName: string | undefined;
         if (savedAgent.config && typeof savedAgent.config === 'object') {
-          const config = savedAgent.config as { mcpServerNames?: string[] };
+          const config = savedAgent.config as { mcpServerNames?: string[]; llmProvider?: string };
           if (config.mcpServerNames && Array.isArray(config.mcpServerNames)) {
             restoredMcpServers = mcpServers.filter(server =>
               config.mcpServerNames!.includes(server.name)
             );
           }
+          llmProviderName = config.llmProvider;
         }
 
-        const agent = new TaskOrientedAgent({
-          id: savedAgent.id,
+        // Get the LLM provider
+        const llmProvider = getLLMProvider(llmProviderName);
+        const memoryManager = getMemoryManager();
+
+        const agent = new LangGraphAgent({
           name: savedAgent.name,
-          rootTask: savedAgent.rootTask || undefined,
           llmProvider,
+          model: (savedAgent.config as any)?.model,
           mcpServers: restoredMcpServers,
           eventBus: (taskManager as unknown as TaskManagerWithEventBus).eventBus,
           taskManager,
           sessionManager,
-          sessionId: savedAgent.sessionId,
+          memoryManager,
           maxDepth: 3,
+          useE2B: (savedAgent.config as any)?.useE2B ?? false,
         });
+
+        // Override the generated ID with saved ID
+        agent.id = savedAgent.id;
+
+        // Initialize the agent
+        await agent.initialize();
 
         // Restore status (but don't auto-start)
         agent.status = 'idle'; // Always restore as idle for safety
@@ -80,7 +114,31 @@ export function createAgentRoutes(
   };
 
   // Restore agents immediately
-  restoreAgents();
+  restoreAgents().catch(error => {
+    console.error('Failed to restore agents on startup:', error);
+  });
+
+  /**
+   * GET /api/agents/models
+   * List available LLM providers and their models
+   */
+  router.get('/models', async (_req, res) => {
+    try {
+      const providers = pluginRegistry.getByType('llm-provider') as LLMProviderPlugin[];
+
+      const providersData = await Promise.all(
+        providers.map(async (provider) => ({
+          id: provider.name,
+          name: provider.metadata.description || provider.name,
+          models: await provider.getModels(),
+        }))
+      );
+
+      res.json({ success: true, data: providersData });
+    } catch (error: unknown) {
+      res.status(500).json({ success: false, error: error instanceof Error ? error.message : String(error) });
+    }
+  });
 
   /**
    * GET /api/agents
@@ -94,7 +152,7 @@ export function createAgentRoutes(
         type: agent.type,
         status: agent.status,
         rootTask: agent.metadata.rootTask,
-        sessionId: (agent as TaskOrientedAgent).getConfiguration().sessionId,
+        sessionId: (agent as LangGraphAgent).getConfiguration().sessionId,
         createdAt: agent.metadata.createdAt,
         config: agent.getConfiguration()
       }));
@@ -111,7 +169,7 @@ export function createAgentRoutes(
    */
   router.post('/', async (req, res) => {
     try {
-      const { name, rootTask, sessionId, maxDepth, mcpServerNames } = req.body;
+      const { name, rootTask, sessionId, maxDepth, mcpServerNames, llmProvider: llmProviderName, model, useE2B } = req.body;
 
       if (!name) {
         return res.status(400).json({
@@ -119,6 +177,9 @@ export function createAgentRoutes(
           error: 'Name is required',
         });
       }
+
+      // Get the LLM provider
+      const llmProvider = getLLMProvider(llmProviderName);
 
       // Use existing session or create new one
       let session;
@@ -147,19 +208,26 @@ export function createAgentRoutes(
         eventBus: EventBus;
       }
 
-      const agent = new TaskOrientedAgent({
+      const memoryManager = getMemoryManager();
+
+      // Create LangGraph agent
+      const agent = new LangGraphAgent({
         name,
-        rootTask,
         llmProvider,
+        model,
         mcpServers: selectedMcpServers,
         eventBus: (taskManager as unknown as TaskManagerWithEventBus).eventBus,
         taskManager,
         sessionManager,
-        sessionId: session.id,
+        memoryManager,
         maxDepth: maxDepth || 3,
+        useE2B: useE2B ?? false,
       });
 
-      // Persist agent to database with mcpServerNames
+      // Initialize the LangGraph agent
+      await agent.initialize();
+
+      // Persist agent to database with mcpServerNames, llmProvider, and model
       agentRepo.save({
         id: agent.id,
         name: agent.name,
@@ -167,7 +235,9 @@ export function createAgentRoutes(
         status: agent.status,
         config: {
           ...agent.config,
-          mcpServerNames: selectedMcpServers.map(s => s.name)
+          mcpServerNames: selectedMcpServers.map(s => s.name),
+          llmProvider: llmProvider.name,
+          model,
         } as Record<string, unknown>,
         metadata: agent.metadata || {},
         rootTask,
@@ -219,7 +289,7 @@ export function createAgentRoutes(
           status: agent.status,
           rootTask: agent.metadata.rootTask,
           createdAt: agent.metadata.createdAt,
-          state: agent.getState(),
+          config: agent.getConfiguration(),
         },
       });
     } catch (error: unknown) {
@@ -242,7 +312,7 @@ export function createAgentRoutes(
         });
       }
 
-      const config = (agent as TaskOrientedAgent).getConfiguration();
+      const config = (agent as LangGraphAgent).getConfiguration();
 
       res.json({
         success: true,
@@ -511,7 +581,7 @@ export function createAgentRoutes(
         config: { ...agent.config } as Record<string, unknown>,
         metadata: agent.metadata || {},
         rootTask: agent.metadata.rootTask,
-        sessionId: (agent as TaskOrientedAgent).getConfiguration().sessionId,
+        sessionId: (agent as LangGraphAgent).getConfiguration().sessionId,
         createdAt: new Date(agent.metadata.createdAt),
         updatedAt: new Date(),
       });
@@ -521,7 +591,7 @@ export function createAgentRoutes(
         data: {
           id: agent.id,
           message: 'Agent configuration updated',
-          config: (agent as TaskOrientedAgent).getConfiguration(),
+          config: (agent as LangGraphAgent).getConfiguration(),
         },
       });
     } catch (error: unknown) {
@@ -616,7 +686,7 @@ export function createAgentRoutes(
         config: { ...agent.config } as Record<string, unknown>,
         metadata: agent.metadata || {},
         rootTask: agent.metadata.rootTask,
-        sessionId: (agent as TaskOrientedAgent).getConfiguration().sessionId,
+        sessionId: (agent as LangGraphAgent).getConfiguration().sessionId,
         createdAt: new Date(agent.metadata.createdAt),
         updatedAt: new Date(),
       });
@@ -672,7 +742,7 @@ export function createAgentRoutes(
         config: { ...agent.config } as Record<string, unknown>,
         metadata: agent.metadata || {},
         rootTask: agent.metadata.rootTask,
-        sessionId: (agent as TaskOrientedAgent).getConfiguration().sessionId,
+        sessionId: (agent as LangGraphAgent).getConfiguration().sessionId,
         createdAt: new Date(agent.metadata.createdAt),
         updatedAt: new Date(),
       });
@@ -825,7 +895,7 @@ export function createAgentRoutes(
         config: { ...agent.config } as Record<string, unknown>,
         metadata: agent.metadata || {},
         rootTask: agent.metadata.rootTask,
-        sessionId: (agent as TaskOrientedAgent).getConfiguration().sessionId,
+        sessionId: (agent as LangGraphAgent).getConfiguration().sessionId,
         createdAt: new Date(agent.metadata.createdAt),
         updatedAt: new Date(),
       });
@@ -889,7 +959,7 @@ export function createAgentRoutes(
         config: { ...agent.config } as Record<string, unknown>,
         metadata: agent.metadata || {},
         rootTask: agent.metadata.rootTask,
-        sessionId: (agent as TaskOrientedAgent).getConfiguration().sessionId,
+        sessionId: (agent as LangGraphAgent).getConfiguration().sessionId,
         createdAt: new Date(agent.metadata.createdAt),
         updatedAt: new Date(),
       });
@@ -938,6 +1008,12 @@ export function createAgentRoutes(
       agent.metadata.rootTask = task.title;
       (agent as any).rootTaskId = taskId;
 
+      // Update task status to in_progress
+      await taskManager.updateTask({
+        taskId,
+        status: 'in_progress',
+      });
+
       // Start or resume the agent
       if (agent.status !== 'running') {
         await agent.start();
@@ -950,6 +1026,63 @@ export function createAgentRoutes(
           status: agent.status,
           taskId,
           message: 'Agent started with task',
+        },
+      });
+    } catch (error: unknown) {
+      res.status(500).json({ success: false, error: error instanceof Error ? error.message : String(error) });
+    }
+  });
+
+  /**
+   * POST /api/agents/:id/tasks/:taskId/stop
+   * Stop working on a specific task and pause the agent
+   */
+  router.post('/:id/tasks/:taskId/stop', async (req, res) => {
+    try {
+      const agent = activeAgents.get(req.params.id);
+
+      if (!agent) {
+        return res.status(404).json({
+          success: false,
+          error: 'Agent not found',
+        });
+      }
+
+      const { taskId } = req.params;
+      const task = taskManager.getTask(taskId);
+
+      if (!task) {
+        return res.status(404).json({
+          success: false,
+          error: 'Task not found',
+        });
+      }
+
+      // Stop the agent if it's running
+      if (agent.status === 'running') {
+        await agent.stop();
+      }
+
+      // Clear current task
+      agent.metadata.currentTaskId = undefined;
+
+      // Update task status back to open so it can be resumed
+      // Only update if task is currently in_progress (don't override completed/blocked/failed)
+      if (task.status === 'in_progress') {
+        await taskManager.updateTask({
+          taskId,
+          status: 'open',
+          agentNotes: 'Task stopped by user - ready to resume',
+        });
+      }
+
+      res.json({
+        success: true,
+        data: {
+          id: agent.id,
+          status: agent.status,
+          taskId,
+          message: 'Agent stopped',
         },
       });
     } catch (error: unknown) {
@@ -975,7 +1108,7 @@ export function createAgentRoutes(
       }
 
       const memoryManager = getMemoryManager();
-      const sessionId = (agent as TaskOrientedAgent).metadata.sessionId || '';
+      const sessionId = (agent as LangGraphAgent).metadata.sessionId || '';
       const snapshot = await memoryManager.getAgentSnapshot(agent.id, sessionId);
 
       res.json({
@@ -1083,7 +1216,7 @@ export function createAgentRoutes(
       }
 
       const memoryManager = getMemoryManager();
-      const sessionId = (agent as TaskOrientedAgent).metadata.sessionId || '';
+      const sessionId = (agent as LangGraphAgent).metadata.sessionId || '';
       
       const memory = await memoryManager.createMemory(agent.id, sessionId, {
         type,
@@ -1179,6 +1312,51 @@ export function createAgentRoutes(
       res.json({
         success: true,
         data: { message: 'Memory deleted' },
+      });
+    } catch (error: unknown) {
+      res.status(500).json({ success: false, error: error instanceof Error ? error.message : String(error) });
+    }
+  });
+
+  /**
+   * POST /api/agents/:id/message
+   * Send a message to an agent (for chat interface)
+   */
+  router.post('/:id/message', async (req, res) => {
+    try {
+      const agent = activeAgents.get(req.params.id);
+
+      if (!agent) {
+        return res.status(404).json({
+          success: false,
+          error: 'Agent not found',
+        });
+      }
+
+      const { message } = req.body;
+
+      if (!message || typeof message !== 'string') {
+        return res.status(400).json({
+          success: false,
+          error: 'Message is required',
+        });
+      }
+
+      // Create a task from the user message
+      const task = await taskManager.createTask({
+        title: `User Message: ${message.substring(0, 50)}...`,
+        description: message,
+        priority: 'medium',
+        createdBy: 'user',
+        assignedTo: agent.id,
+      });
+
+      res.json({
+        success: true,
+        data: {
+          taskId: task.id,
+          reply: `Message received and task created. The agent will process your request.`,
+        },
       });
     } catch (error: unknown) {
       res.status(500).json({ success: false, error: error instanceof Error ? error.message : String(error) });

@@ -157,6 +157,7 @@ export function createTaskRoutes(taskManager: TaskManager) {
         actualSteps,
         result,
         errorMessage,
+        agentNotes,
         tags,
         metadata,
       } = req.body;
@@ -172,6 +173,7 @@ export function createTaskRoutes(taskManager: TaskManager) {
         actualSteps,
         result,
         errorMessage,
+        agentNotes,
         tags,
         metadata,
       });

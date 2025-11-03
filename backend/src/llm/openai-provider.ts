@@ -139,6 +139,20 @@ export class OpenAIProvider extends BaseLLMProvider {
   }
 
   /**
+   * Check if a specific model supports vision/image inputs
+   */
+  modelSupportsVision(model: string): boolean {
+    const visionModels = [
+      'gpt-4-vision-preview',
+      'gpt-4-turbo',
+      'gpt-4-turbo-preview',
+      'gpt-4o',
+      'gpt-4o-mini',
+    ];
+    return visionModels.some(m => model.includes(m));
+  }
+
+  /**
    * Check if a specific model supports JSON mode
    * JSON mode is supported by gpt-4-turbo variants (1106+), gpt-3.5-turbo-1106+, and gpt-4o
    * Base gpt-4 and older versions do NOT support JSON mode

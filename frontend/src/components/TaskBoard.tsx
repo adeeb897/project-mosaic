@@ -20,6 +20,7 @@ interface Task {
   parentTaskId?: string;
   childTaskIds: string[];
   tags: string[];
+  agentNotes?: string;
   createdAt: string;
 }
 
@@ -400,6 +401,24 @@ export function TaskBoard({ realtimeEvents, onTaskClick }: TaskBoardProps) {
                         Start
                       </button>
                     )}
+                    {/* Stop button - only show if currently running */}
+                    {isCurrentlyRunning && (
+                      <button
+                        onClick={async () => {
+                          try {
+                            await axios.post(getApiUrl(`/api/agents/${agent.id}/tasks/${task.id}/stop`));
+                            await fetchData();
+                          } catch (error: any) {
+                            alert(`Failed to stop task: ${error.response?.data?.error || error.message}`);
+                          }
+                        }}
+                        className="absolute top-2 right-2 opacity-0 group-hover:opacity-100 transition-opacity p-2 bg-red-500 hover:bg-red-600 text-white rounded-lg shadow-lg flex items-center gap-1 text-xs font-medium"
+                        title={`Stop ${agent.name}`}
+                      >
+                        <X size={14} />
+                        Stop
+                      </button>
+                    )}
                   </div>
                 );
               })}
@@ -518,6 +537,16 @@ export function TaskBoard({ realtimeEvents, onTaskClick }: TaskBoardProps) {
                 <label className="block text-sm font-semibold text-gray-700 mb-2">Description</label>
                 <p className="text-sm text-gray-600 whitespace-pre-wrap">{viewingTask.description}</p>
               </div>
+
+              {/* Agent Notes */}
+              {viewingTask.agentNotes && (
+                <div>
+                  <label className="block text-sm font-semibold text-gray-700 mb-2">Agent Response / Notes</label>
+                  <div className="bg-blue-50 border-l-4 border-blue-500 p-3 rounded-r-lg">
+                    <p className="text-sm text-gray-700 whitespace-pre-wrap">{viewingTask.agentNotes}</p>
+                  </div>
+                </div>
+              )}
 
               {/* Status & Priority */}
               <div className="grid grid-cols-2 gap-4">
