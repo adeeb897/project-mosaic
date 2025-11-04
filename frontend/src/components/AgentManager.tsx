@@ -337,7 +337,7 @@ export function AgentManager({ onSessionSelect, realtimeEvents }: AgentManagerPr
       <input
         ref={fileInputRef}
         type="file"
-        accept=".json,.af.json"
+        accept=".af,.af.json,.json,application/json"
         onChange={handleImportAgent}
         className="hidden"
       />
