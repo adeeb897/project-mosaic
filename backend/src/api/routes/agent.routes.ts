@@ -12,6 +12,7 @@ import { EventBus } from '../../core/event-bus';
 import { getDatabase } from '../../persistence/database';
 import { AgentRepository } from '../../persistence/repositories/agent.repository';
 import { PluginRegistry } from '../../core/plugin-registry';
+import { AgentFileService } from '../../services/agent-file.service';
 
 export function createAgentRoutes(
   taskManager: TaskManager,
@@ -227,7 +228,7 @@ export function createAgentRoutes(
       // Initialize the LangGraph agent
       await agent.initialize();
 
-      // Persist agent to database with mcpServerNames, llmProvider, and model
+      // Persist agent to database with .af format fields
       agentRepo.save({
         id: agent.id,
         name: agent.name,
@@ -238,12 +239,34 @@ export function createAgentRoutes(
           mcpServerNames: selectedMcpServers.map(s => s.name),
           llmProvider: llmProvider.name,
           model,
+          useE2B,
         } as Record<string, unknown>,
         metadata: agent.metadata || {},
         rootTask,
         sessionId: session.id,
         createdAt: new Date(),
         updatedAt: new Date(),
+
+        // Agent File (.af) format fields
+        agentType: agent.type,
+        description: `Agent created on ${new Date().toISOString()}`,
+        version: '1.0.0',
+        system: undefined, // Will be set by LangGraphAgent if needed
+        llmConfig: {
+          model: model || 'gpt-4',
+          context_window: 128000,
+        },
+        embeddingConfig: undefined,
+        coreMemory: [],
+        messages: [],
+        inContextMessageIndices: undefined,
+        messageBufferAutoclear: false,
+        tools: [],
+        toolRules: undefined,
+        toolExecEnvironmentVariables: undefined,
+        tags: undefined,
+        metadata_: undefined,
+        multiAgentGroup: undefined,
       });
 
       activeAgents.set(agent.id, agent);
@@ -572,6 +595,9 @@ export function createAgentRoutes(
         agent.metadata.rootTask = rootTask;
       }
 
+      // First, get existing agent from database to preserve .af fields
+      const existingAgent = agentRepo.findById(agent.id);
+
       // Save to database
       agentRepo.save({
         id: agent.id,
@@ -584,6 +610,24 @@ export function createAgentRoutes(
         sessionId: (agent as LangGraphAgent).getConfiguration().sessionId,
         createdAt: new Date(agent.metadata.createdAt),
         updatedAt: new Date(),
+
+        // Preserve existing .af fields or use defaults
+        agentType: existingAgent?.agentType || agent.type,
+        description: existingAgent?.description,
+        version: existingAgent?.version || '1.0.0',
+        system: existingAgent?.system,
+        llmConfig: existingAgent?.llmConfig || { model: 'gpt-4', context_window: 128000 },
+        embeddingConfig: existingAgent?.embeddingConfig,
+        coreMemory: existingAgent?.coreMemory || [],
+        messages: existingAgent?.messages || [],
+        inContextMessageIndices: existingAgent?.inContextMessageIndices,
+        messageBufferAutoclear: existingAgent?.messageBufferAutoclear || false,
+        tools: existingAgent?.tools || [],
+        toolRules: existingAgent?.toolRules,
+        toolExecEnvironmentVariables: existingAgent?.toolExecEnvironmentVariables,
+        tags: existingAgent?.tags,
+        metadata_: existingAgent?.metadata_,
+        multiAgentGroup: existingAgent?.multiAgentGroup,
       });
 
       res.json({
@@ -1360,6 +1404,226 @@ export function createAgentRoutes(
       });
     } catch (error: unknown) {
       res.status(500).json({ success: false, error: error instanceof Error ? error.message : String(error) });
+    }
+  });
+
+  // ============================================================================
+  // Agent File (.af) Import/Export Routes
+  // ============================================================================
+
+  const agentFileService = new AgentFileService();
+
+  /**
+   * GET /api/agents/:id/export
+   * Export an agent to Agent File (.af) format (JSON response)
+   */
+  router.get('/:id/export', async (req, res) => {
+    try {
+      const { id } = req.params;
+      const {
+        includeMessages = 'true',
+        includeTools = 'true',
+        includeMemory = 'true',
+        messageLimit,
+        prettyPrint = 'true',
+      } = req.query;
+
+      // Get agent from database
+      const agentRecord = agentRepo.findById(id);
+      if (!agentRecord) {
+        return res.status(404).json({
+          success: false,
+          error: `Agent ${id} not found`,
+        });
+      }
+
+      // Export to agent file format
+      const agentFile = agentFileService.exportToAgentFile(agentRecord, {
+        includeMessages: includeMessages === 'true',
+        includeTools: includeTools === 'true',
+        includeMemory: includeMemory === 'true',
+        messageLimit: messageLimit ? parseInt(messageLimit as string) : undefined,
+        prettyPrint: prettyPrint === 'true',
+      });
+
+      res.json({
+        success: true,
+        data: agentFile,
+      });
+    } catch (error: unknown) {
+      res.status(500).json({
+        success: false,
+        error: error instanceof Error ? error.message : String(error)
+      });
+    }
+  });
+
+  /**
+   * GET /api/agents/:id/export/download
+   * Export and download agent as .af file
+   */
+  router.get('/:id/export/download', async (req, res) => {
+    try {
+      const { id } = req.params;
+      const {
+        includeMessages = 'true',
+        includeTools = 'true',
+        includeMemory = 'true',
+        messageLimit,
+      } = req.query;
+
+      // Get agent from database
+      const agentRecord = agentRepo.findById(id);
+      if (!agentRecord) {
+        return res.status(404).json({
+          success: false,
+          error: `Agent ${id} not found`,
+        });
+      }
+
+      // Export to JSON
+      const json = agentFileService.exportToJson(agentRecord, {
+        includeMessages: includeMessages === 'true',
+        includeTools: includeTools === 'true',
+        includeMemory: includeMemory === 'true',
+        messageLimit: messageLimit ? parseInt(messageLimit as string) : undefined,
+        prettyPrint: true,
+      });
+
+      // Set headers for file download
+      const filename = `${agentRecord.name.replace(/[^a-z0-9]/gi, '_')}_${Date.now()}.af.json`;
+      res.setHeader('Content-Type', 'application/json');
+      res.setHeader('Content-Disposition', `attachment; filename="${filename}"`);
+      res.send(json);
+    } catch (error: unknown) {
+      res.status(500).json({
+        success: false,
+        error: error instanceof Error ? error.message : String(error)
+      });
+    }
+  });
+
+  /**
+   * POST /api/agents/import
+   * Import an agent from Agent File (.af) format
+   */
+  router.post('/import', async (req, res) => {
+    try {
+      const agentFileWrapper = req.body;
+      const {
+        preserveId = false,
+        overwriteExisting = false,
+        mergeMessages = false,
+        mergeTools = false,
+        conflictResolution = 'create_new',
+      } = req.query;
+
+      // Validate the agent file
+      try {
+        agentFileService.validateAgentFile(agentFileWrapper);
+      } catch (error) {
+        return res.status(400).json({
+          success: false,
+          error: `Invalid agent file: ${error instanceof Error ? error.message : String(error)}`,
+        });
+      }
+
+      // Import the agent
+      const importedAgent = agentFileService.importFromAgentFile(agentFileWrapper, {
+        preserveId: preserveId === 'true',
+        mergeMessages: mergeMessages === 'true',
+        mergeTools: mergeTools === 'true',
+        conflictResolution: conflictResolution as any,
+      });
+
+      // Check for conflicts if preserveId is true
+      if (preserveId === 'true' && importedAgent.id) {
+        const existing = agentRepo.findById(importedAgent.id);
+        if (existing) {
+          if (overwriteExisting !== 'true') {
+            return res.status(409).json({
+              success: false,
+              error: `Agent with ID ${importedAgent.id} already exists. Use overwriteExisting=true to replace it.`,
+            });
+          }
+
+          // Merge messages and tools if requested
+          if (mergeMessages === 'true' && existing.messages) {
+            importedAgent.messages = agentFileService.mergeMessages(
+              existing.messages,
+              importedAgent.messages || []
+            );
+          }
+
+          if (mergeTools === 'true' && existing.tools) {
+            importedAgent.tools = agentFileService.mergeTools(
+              existing.tools,
+              importedAgent.tools || []
+            );
+          }
+        }
+      }
+
+      // Save to database
+      agentRepo.save(importedAgent as any);
+
+      // Create and initialize the agent in memory
+      const mosaicMetadata = importedAgent.metadata_?.mosaic as any;
+      const llmProviderName = mosaicMetadata?.config?.llmProvider;
+      const llmProvider = getLLMProvider(llmProviderName);
+      const memoryManager = getMemoryManager();
+
+      // Filter MCP servers if specified in config
+      let selectedMcpServers = mcpServers;
+      if (mosaicMetadata?.config?.mcpServerNames && Array.isArray(mosaicMetadata.config.mcpServerNames)) {
+        selectedMcpServers = mcpServers.filter(server =>
+          mosaicMetadata.config.mcpServerNames.includes(server.name)
+        );
+      }
+
+      // Access eventBus from taskManager
+      interface TaskManagerWithEventBus {
+        eventBus: EventBus;
+      }
+
+      const agent = new LangGraphAgent({
+        name: importedAgent.name!,
+        llmProvider,
+        model: mosaicMetadata?.config?.model,
+        mcpServers: selectedMcpServers,
+        eventBus: (taskManager as unknown as TaskManagerWithEventBus).eventBus,
+        taskManager,
+        sessionManager,
+        memoryManager,
+        maxDepth: 3,
+        useE2B: mosaicMetadata?.config?.useE2B ?? false,
+      });
+
+      // Override the generated ID with imported ID
+      agent.id = importedAgent.id!;
+
+      // Initialize the agent
+      await agent.initialize();
+
+      // Set status to idle
+      agent.status = 'idle';
+      activeAgents.set(agent.id, agent);
+
+      res.json({
+        success: true,
+        data: {
+          id: agent.id,
+          name: agent.name,
+          type: agent.type,
+          status: agent.status,
+          message: 'Agent imported successfully',
+        },
+      });
+    } catch (error: unknown) {
+      res.status(500).json({
+        success: false,
+        error: error instanceof Error ? error.message : String(error)
+      });
     }
   });
 

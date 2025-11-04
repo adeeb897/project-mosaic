@@ -7,6 +7,7 @@ import Database from 'better-sqlite3';
 import { logger } from '../core/logger';
 import * as path from 'path';
 import * as fs from 'fs';
+import { runMigrations } from './migrations/001_add_agent_file_fields';
 
 export class DatabaseService {
   private db: Database.Database;
@@ -29,17 +30,38 @@ export class DatabaseService {
 
     logger.info('Initializing database schema...');
 
-    // Create agents table
+    // Create agents table with Agent File (.af) format support
     this.db.exec(`
       CREATE TABLE IF NOT EXISTS agents (
         id TEXT PRIMARY KEY,
         name TEXT NOT NULL,
+
+        -- Legacy fields (kept for compatibility with existing code)
         type TEXT NOT NULL,
         status TEXT NOT NULL,
         config TEXT NOT NULL,
-        metadata TEXT,
         root_task TEXT,
         session_id TEXT,
+
+        -- Agent File (.af) format fields
+        agent_type TEXT,
+        description TEXT,
+        version TEXT,
+        system TEXT,                                    -- System prompt
+        llm_config TEXT NOT NULL,                       -- JSON: LLMConfig
+        embedding_config TEXT,                          -- JSON: EmbeddingConfig
+        core_memory TEXT NOT NULL DEFAULT '[]',         -- JSON: CoreMemoryBlock[]
+        messages TEXT NOT NULL DEFAULT '[]',            -- JSON: Message[]
+        in_context_message_indices TEXT,                -- JSON: number[]
+        message_buffer_autoclear INTEGER DEFAULT 0,     -- Boolean (0/1)
+        tools TEXT NOT NULL DEFAULT '[]',               -- JSON: Tool[]
+        tool_rules TEXT,                                -- JSON: ToolRule[]
+        tool_exec_environment_variables TEXT,           -- JSON: ToolEnvVar[]
+        tags TEXT,                                      -- JSON: Tag[]
+        metadata_ TEXT,                                 -- JSON: metadata (underscore to match .af convention)
+        multi_agent_group TEXT,                         -- JSON: MultiAgentGroup
+
+        -- Timestamps
         created_at INTEGER NOT NULL,
         updated_at INTEGER NOT NULL
       )
@@ -166,6 +188,14 @@ export class DatabaseService {
       CREATE INDEX IF NOT EXISTS idx_memory_importance ON memory_entries(importance);
       CREATE INDEX IF NOT EXISTS idx_memory_task ON memory_entries(related_task_id);
     `);
+
+    // Run migrations
+    try {
+      runMigrations(this.db);
+    } catch (error) {
+      logger.error('Failed to run migrations, but continuing anyway:', error);
+      // Don't throw - allow the app to start even if migrations fail
+    }
 
     this.initialized = true;
     logger.info('Database schema initialized successfully');
