@@ -4,7 +4,7 @@
 'use client';
 
 import { useState, useRef, useEffect } from 'react';
-import { Send, Play, Square, Trash2, Bot, Monitor, Loader2 } from 'lucide-react';
+import { Send, Play, Square, Trash2, Bot, Monitor, Loader2, Download } from 'lucide-react';
 import axios from 'axios';
 import { getApiUrl } from '@/config/api';
 
@@ -35,6 +35,7 @@ interface AgentChatCardProps {
   onStart: (id: string) => void;
   onStop: (id: string) => void;
   onDelete: (id: string) => void;
+  onExport: (id: string) => void;
   currentTask?: { id: string; title: string };
   browserScreenshot?: string;
 }
@@ -44,6 +45,7 @@ export function AgentChatCard({
   onStart,
   onStop,
   onDelete,
+  onExport,
   currentTask,
   browserScreenshot,
 }: AgentChatCardProps) {
@@ -240,6 +242,13 @@ export function AgentChatCard({
             Start
           </button>
         )}
+        <button
+          onClick={() => onExport(agent.id)}
+          className="px-3 py-2 bg-blue-100 text-blue-700 rounded-lg hover:bg-blue-200 transition-colors"
+          title="Export agent"
+        >
+          <Download className="w-4 h-4" />
+        </button>
         <button
           onClick={() => onDelete(agent.id)}
           className="px-3 py-2 bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200 transition-colors"

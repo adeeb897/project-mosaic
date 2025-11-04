@@ -7,7 +7,6 @@ import Database from 'better-sqlite3';
 import { logger } from '../core/logger';
 import * as path from 'path';
 import * as fs from 'fs';
-import { runMigrations } from './migrations/001_add_agent_file_fields';
 
 export class DatabaseService {
   private db: Database.Database;
@@ -188,14 +187,6 @@ export class DatabaseService {
       CREATE INDEX IF NOT EXISTS idx_memory_importance ON memory_entries(importance);
       CREATE INDEX IF NOT EXISTS idx_memory_task ON memory_entries(related_task_id);
     `);
-
-    // Run migrations
-    try {
-      runMigrations(this.db);
-    } catch (error) {
-      logger.error('Failed to run migrations, but continuing anyway:', error);
-      // Don't throw - allow the app to start even if migrations fail
-    }
 
     this.initialized = true;
     logger.info('Database schema initialized successfully');

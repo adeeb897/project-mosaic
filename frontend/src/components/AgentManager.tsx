@@ -4,7 +4,7 @@
  */
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import {
   Plus,
   Play,
@@ -15,8 +15,11 @@ import {
   Eye,
   Settings,
   Target,
+  Upload,
+  Download,
 } from 'lucide-react';
 import axios from 'axios';
+import toast from 'react-hot-toast';
 import { RealtimeEvent } from '@/hooks/useWebSocket';
 import { getApiUrl } from '@/config/api';
 import { AgentConfig } from './AgentConfig';
@@ -88,6 +91,9 @@ export function AgentManager({ onSessionSelect, realtimeEvents }: AgentManagerPr
     mcpServerNames: [] as string[],
     useE2B: false,
   });
+
+  // Ref for file input
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   // Fetch agents, MCP servers, and available models
   useEffect(() => {
@@ -234,6 +240,84 @@ export function AgentManager({ onSessionSelect, realtimeEvents }: AgentManagerPr
     }
   };
 
+  // Export agent to .af file
+  const handleExportAgent = async (agentId: string) => {
+    try {
+      const agent = agents.find(a => a.id === agentId);
+      const agentName = agent?.name || 'agent';
+
+      // Using blob download approach for better control
+      const response = await axios.get(
+        getApiUrl(`/api/agents/${agentId}/export/download`),
+        {
+          responseType: 'blob',
+          params: {
+            includeMessages: 'true',
+            includeTools: 'true',
+            includeMemory: 'true',
+          }
+        }
+      );
+
+      // Create download link
+      const url = window.URL.createObjectURL(new Blob([response.data]));
+      const link = document.createElement('a');
+      link.href = url;
+      link.setAttribute('download', `${agentName.replace(/[^a-z0-9]/gi, '_')}_${Date.now()}.af.json`);
+      document.body.appendChild(link);
+      link.click();
+      link.remove();
+      window.URL.revokeObjectURL(url);
+
+      toast.success(`Agent "${agentName}" exported successfully`);
+    } catch (error: any) {
+      toast.error(`Failed to export agent: ${error.response?.data?.error || error.message}`);
+    }
+  };
+
+  // Trigger file input for import
+  const handleImportClick = () => {
+    fileInputRef.current?.click();
+  };
+
+  // Import agent from .af file
+  const handleImportAgent = async (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    if (!file) return;
+
+    try {
+      // Read file content
+      const content = await file.text();
+      const agentFile = JSON.parse(content);
+
+      // Import agent
+      const response = await axios.post(
+        getApiUrl('/api/agents/import'),
+        agentFile,
+        {
+          params: {
+            overwriteExisting: 'false',
+            preserveId: 'false',
+          }
+        }
+      );
+
+      const importedAgent = response.data.data;
+      toast.success(`Agent "${importedAgent.name}" imported successfully`);
+
+      // Refresh agent list
+      fetchAgents();
+    } catch (error: any) {
+      const errorMsg = error.response?.data?.error || error.message;
+      toast.error(`Failed to import agent: ${errorMsg}`);
+    } finally {
+      // Reset file input
+      if (fileInputRef.current) {
+        fileInputRef.current.value = '';
+      }
+    }
+  };
+
   const getStatusBadge = (status: string) => {
     switch (status) {
       case 'running':
@@ -249,19 +333,38 @@ export function AgentManager({ onSessionSelect, realtimeEvents }: AgentManagerPr
 
   return (
     <div className="space-y-6">
+      {/* Hidden file input for import */}
+      <input
+        ref={fileInputRef}
+        type="file"
+        accept=".json,.af.json"
+        onChange={handleImportAgent}
+        className="hidden"
+      />
+
       {/* Header */}
       <div className="flex justify-between items-center">
         <div>
           <h2 className="text-3xl font-bold gradient-text">Agents</h2>
           <p className="text-gray-600 mt-2">Create and manage autonomous agents</p>
         </div>
-        <button
-          onClick={() => setShowCreateForm(true)}
-          className="btn-primary flex items-center gap-2"
-        >
-          <Plus size={20} />
-          Create Agent
-        </button>
+        <div className="flex gap-2">
+          <button
+            onClick={handleImportClick}
+            className="btn-secondary flex items-center gap-2"
+            title="Import agent from .af file"
+          >
+            <Upload size={18} />
+            Import
+          </button>
+          <button
+            onClick={() => setShowCreateForm(true)}
+            className="btn-primary flex items-center gap-2"
+          >
+            <Plus size={20} />
+            Create Agent
+          </button>
+        </div>
       </div>
 
       {/* Create Form */}
@@ -455,6 +558,7 @@ export function AgentManager({ onSessionSelect, realtimeEvents }: AgentManagerPr
               onStart={startAgent}
               onStop={pauseAgent}
               onDelete={deleteAgent}
+              onExport={handleExportAgent}
               currentTask={currentTasks[agent.id]}
             />
           ))}

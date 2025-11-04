@@ -51,6 +51,13 @@ Project Mosaic is a modular platform for running multi-agent AI systems where ag
 - **A2A Protocol** (Google): Agent-to-agent communication
 - **MCP** (Anthropic): Model Context Protocol for tool access
 - **LangGraph.js**: Production-ready agent orchestration
+- **Agent File (.af)** (Letta): Open standard for agent serialization
+
+### 📦 **Agent Portability**
+- **Import/Export**: Share agents across compatible frameworks
+- **Version Control**: Track agent configurations with git
+- **Checkpointing**: Save and restore agent state
+- **Collaboration**: Share agent configurations with team members
 
 ---
 
@@ -142,6 +149,21 @@ open http://localhost:3001
    - **Task**: "Research renewable energy solutions and create a report"
 3. Click "Create" → then click "Start"
 4. Watch the agent work in the Activity Timeline!
+
+### Import/Export Agents
+
+**Export an agent:**
+1. Click the download icon on any agent card
+2. Agent is saved as a `.af.json` file with all configuration, messages, and tools
+
+**Import an agent:**
+1. Click "Import" button in the Agents page header
+2. Select a `.af.json` file
+3. Agent is created with all saved state restored
+
+The `.af` format is compatible with [Letta/MemGPT](https://github.com/letta-ai/letta) and other frameworks supporting the [Agent File standard](https://github.com/letta-ai/agent-file).
+
+See [docs/agent-file-format.md](./docs/agent-file-format.md) for complete API documentation and programmatic usage.
 
 See [ADMIN-DASHBOARD-GUIDE.md](./ADMIN-DASHBOARD-GUIDE.md) for complete dashboard documentation.
 
@@ -259,12 +281,13 @@ Experiment with agent communication patterns, emergent behaviors, and coordinati
 |-----------|-----------|---------|
 | Agent Orchestration | [LangGraph.js](https://js.langchain.com/docs/langgraph) | Stateful agent workflows |
 | Agent Communication | [A2A Protocol](https://a2a-protocol.org/) | Standard agent-to-agent messaging |
+| Agent Serialization | [Agent File (.af)](https://github.com/letta-ai/agent-file) | Portable agent format |
 | Tool Access | [MCP](https://modelcontextprotocol.io/) | Unified tool interface |
 | Sandboxing | [E2B](https://e2b.dev/) / Docker | Isolated execution |
 | Observability | [LangSmith](https://docs.smith.langchain.com/) | Tracing & monitoring |
 | Backend | Node.js + TypeScript | Server runtime |
 | Frontend | React + TailwindCSS | Admin dashboard |
-| Database | PostgreSQL | Persistent storage |
+| Database | SQLite | Persistent storage |
 | Event Bus | Redis | Real-time pub/sub |
 
 ---
@@ -274,6 +297,7 @@ Experiment with agent communication patterns, emergent behaviors, and coordinati
 - 🚀 **[Quick Start](./QUICK_START.md)** - Get started in 5 minutes
 - 📖 **[Architecture](./ARCHITECTURE.md)** - System design and components
 - 📚 **[Full Documentation](./docs/)** - Complete guides and references
+  - [Agent File Format](./docs/agent-file-format.md) - Import/export agents
   - [Extensibility Guide](./docs/extensibility.md) - Build custom plugins
   - [Deployment Guide](./docs/deployment.md) - Deploy anywhere
   - [Contributing Guide](./docs/contributing.md) - Join the project
@@ -304,6 +328,7 @@ Experiment with agent communication patterns, emergent behaviors, and coordinati
 - [x] Task hierarchy visualization
 - [x] Activity timeline with live updates
 - [x] Task creation and tracking
+- [x] Agent import/export with .af format
 
 ### 🎯 Phase 4: Enhanced Capabilities
 - [ ] Browser MCP server
@@ -355,6 +380,7 @@ This project is licensed under the **GNU GPL-3.0 License** - see the [LICENSE](L
 - Built on [LangGraph.js](https://js.langchain.com/docs/langgraph) by LangChain
 - Uses [A2A Protocol](https://a2a-protocol.org/) by Google
 - Uses [Model Context Protocol](https://modelcontextprotocol.io/) by Anthropic
+- Uses [Agent File format](https://github.com/letta-ai/agent-file) by Letta AI
 - Sandboxing powered by [E2B](https://e2b.dev/)
 
 ---

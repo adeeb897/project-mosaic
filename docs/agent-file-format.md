@@ -230,17 +230,13 @@ const merged = service.mergeMessages(
 );
 ```
 
-## Migration
+## Database Initialization
 
-Existing databases are automatically migrated on startup to add Agent File fields.
-
-The migration:
-1. Adds all new Agent File columns
-2. Populates `agent_type` from existing `type` field
-3. Creates default `llm_config` from existing `config` field
-4. Sets default empty arrays for `core_memory`, `messages`, `tools`
-
-Migration is tracked in the `migrations` table to prevent duplicate runs.
+The database schema includes all Agent File fields from the start. When creating a new agent:
+- `agent_type` is set from the agent type
+- `llm_config` is populated from the LLM provider configuration
+- Empty arrays are initialized for `core_memory`, `messages`, `tools`
+- All fields can be populated via import from .af files
 
 ## Limitations & Future Work
 
