@@ -1505,11 +1505,11 @@ export function createAgentRoutes(
 
   /**
    * POST /api/agents/import
-   * Import an agent from Agent File (.af) format
+   * Import an agent from Agent File (.af) format (official format)
    */
   router.post('/import', async (req, res) => {
     try {
-      const agentFileWrapper = req.body;
+      const agentFile = req.body;
       const {
         preserveId = false,
         overwriteExisting = false,
@@ -1520,7 +1520,7 @@ export function createAgentRoutes(
 
       // Validate the agent file
       try {
-        agentFileService.validateAgentFile(agentFileWrapper);
+        agentFileService.validateAgentFile(agentFile);
       } catch (error) {
         return res.status(400).json({
           success: false,
@@ -1529,7 +1529,7 @@ export function createAgentRoutes(
       }
 
       // Import the agent
-      const importedAgent = agentFileService.importFromAgentFile(agentFileWrapper, {
+      const importedAgent = agentFileService.importFromAgentFile(agentFile, {
         preserveId: preserveId === 'true',
         mergeMessages: mergeMessages === 'true',
         mergeTools: mergeTools === 'true',

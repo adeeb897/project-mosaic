@@ -222,17 +222,9 @@ export interface AgentFile {
 // Helper Types for Import/Export
 // ============================================================================
 
-export interface AgentFileMetadata {
-  schema_version: string;
-  exported_at: string;
-  exported_by?: string;
-  source_system: string;
-}
-
-export interface AgentFileWrapper {
-  metadata: AgentFileMetadata;
-  agent: AgentFile;
-}
+// Note: The official .af format does NOT use a wrapper.
+// AgentFile IS the root-level structure.
+// We keep these types for internal use only (Mosaic-specific exports with metadata)
 
 // ============================================================================
 // Import/Export Options

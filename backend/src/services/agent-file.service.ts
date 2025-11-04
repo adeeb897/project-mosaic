@@ -8,8 +8,6 @@ import { logger } from '../core/logger';
 import type { AgentRecord } from '../persistence/repositories/agent.repository';
 import type {
   AgentFile,
-  AgentFileWrapper,
-  AgentFileMetadata,
   ExportOptions,
   ImportOptions,
   CoreMemoryBlock,
@@ -23,14 +21,11 @@ import type {
   MultiAgentGroup,
 } from '../../shared/types/agent-file';
 
-const SCHEMA_VERSION = '1.0';
-const SOURCE_SYSTEM = 'project-mosaic';
-
 export class AgentFileService {
   /**
-   * Export an agent to Agent File (.af) format
+   * Export an agent to Agent File (.af) format (official format - no wrapper)
    */
-  exportToAgentFile(agent: AgentRecord, options: ExportOptions = {}): AgentFileWrapper {
+  exportToAgentFile(agent: AgentRecord, options: ExportOptions = {}): AgentFile {
     const {
       includeMessages = true,
       includeTools = true,
@@ -91,17 +86,7 @@ export class AgentFileService {
       multi_agent_group: agent.multiAgentGroup,
     };
 
-    // Wrap with metadata
-    const metadata: AgentFileMetadata = {
-      schema_version: SCHEMA_VERSION,
-      exported_at: new Date().toISOString(),
-      source_system: SOURCE_SYSTEM,
-    };
-
-    return {
-      metadata,
-      agent: agentFile,
-    };
+    return agentFile;
   }
 
   /**
@@ -113,10 +98,10 @@ export class AgentFileService {
   }
 
   /**
-   * Import an agent from Agent File (.af) format
+   * Import an agent from Agent File (.af) format (official format - no wrapper)
    */
   importFromAgentFile(
-    agentFileWrapper: AgentFileWrapper,
+    agentFile: AgentFile,
     options: ImportOptions = {}
   ): Partial<AgentRecord> {
     const {
@@ -125,12 +110,6 @@ export class AgentFileService {
       mergeTools = false,
       conflictResolution = 'create_new',
     } = options;
-
-    const agentFile = agentFileWrapper.agent;
-    const metadata = agentFileWrapper.metadata;
-
-    // Validate schema version
-    this.validateSchemaVersion(metadata.schema_version);
 
     // Extract Mosaic-specific metadata if present
     const mosaicMetadata = (agentFile.metadata_?.mosaic as any) || {};
@@ -180,8 +159,8 @@ export class AgentFileService {
    */
   importFromJson(json: string, options: ImportOptions = {}): Partial<AgentRecord> {
     try {
-      const agentFileWrapper = JSON.parse(json) as AgentFileWrapper;
-      return this.importFromAgentFile(agentFileWrapper, options);
+      const agentFile = JSON.parse(json) as AgentFile;
+      return this.importFromAgentFile(agentFile, options);
     } catch (error) {
       logger.error('Failed to parse agent file JSON:', error);
       throw new Error(`Invalid agent file JSON: ${error instanceof Error ? error.message : 'Unknown error'}`);
@@ -189,66 +168,55 @@ export class AgentFileService {
   }
 
   /**
-   * Validate agent file structure
+   * Validate agent file structure (official .af format)
    */
-  validateAgentFile(agentFileWrapper: AgentFileWrapper): boolean {
+  validateAgentFile(agentFile: AgentFile): boolean {
     try {
-      // Check required metadata
-      if (!agentFileWrapper.metadata) {
-        throw new Error('Missing metadata');
-      }
-
-      if (!agentFileWrapper.metadata.schema_version) {
-        throw new Error('Missing schema_version');
-      }
-
-      // Check required agent fields
-      if (!agentFileWrapper.agent) {
-        throw new Error('Missing agent data');
-      }
-
-      const agent = agentFileWrapper.agent;
-
-      if (!agent.name) {
+      // Check required fields per official .af format
+      if (!agentFile.name) {
         throw new Error('Missing agent name');
       }
 
-      if (!agent.llm_config) {
+      if (!agentFile.llm_config) {
         throw new Error('Missing llm_config');
       }
 
-      if (!agent.llm_config.model) {
+      if (!agentFile.llm_config.model) {
         throw new Error('Missing llm_config.model');
       }
 
       // Validate arrays
-      if (agent.core_memory && !Array.isArray(agent.core_memory)) {
+      if (agentFile.core_memory && !Array.isArray(agentFile.core_memory)) {
         throw new Error('core_memory must be an array');
       }
 
-      if (agent.messages && !Array.isArray(agent.messages)) {
+      if (agentFile.messages && !Array.isArray(agentFile.messages)) {
         throw new Error('messages must be an array');
       }
 
-      if (agent.tools && !Array.isArray(agent.tools)) {
+      if (agentFile.tools && !Array.isArray(agentFile.tools)) {
         throw new Error('tools must be an array');
+      }
+
+      // Validate timestamps if present
+      if (agentFile.created_at) {
+        const date = new Date(agentFile.created_at);
+        if (isNaN(date.getTime())) {
+          throw new Error('Invalid created_at timestamp');
+        }
+      }
+
+      if (agentFile.updated_at) {
+        const date = new Date(agentFile.updated_at);
+        if (isNaN(date.getTime())) {
+          throw new Error('Invalid updated_at timestamp');
+        }
       }
 
       return true;
     } catch (error) {
       logger.error('Agent file validation failed:', error);
       throw error;
-    }
-  }
-
-  /**
-   * Validate schema version compatibility
-   */
-  private validateSchemaVersion(version: string): void {
-    const supportedVersions = ['1.0', '0.9'];
-
-    if (!supportedVersions.includes(version)) {
-      logger.warn(`Unsupported schema version: ${version}. Attempting to import anyway.`);
     }
   }
 
@@ -293,10 +261,10 @@ export class AgentFileService {
   /**
    * Create a minimal agent file for testing
    */
-  createMinimalAgentFile(name: string, model: string): AgentFileWrapper {
+  createMinimalAgentFile(name: string, model: string): AgentFile {
     const now = new Date().toISOString();
 
-    const agentFile: AgentFile = {
+    return {
       name,
       agent_type: 'langgraph-agent',
       version: '1.0.0',
@@ -309,17 +277,6 @@ export class AgentFileService {
       core_memory: [],
       messages: [],
       tools: [],
-    };
-
-    const metadata: AgentFileMetadata = {
-      schema_version: SCHEMA_VERSION,
-      exported_at: now,
-      source_system: SOURCE_SYSTEM,
-    };
-
-    return {
-      metadata,
-      agent: agentFile,
     };
   }
 }
