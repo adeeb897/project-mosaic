@@ -84,6 +84,7 @@ export function AgentManager({ onSessionSelect, realtimeEvents }: AgentManagerPr
   const [mcpServers, setMcpServers] = useState<MCPServer[]>([]);
   const [modelProviders, setModelProviders] = useState<ModelProvider[]>([]);
   const [currentTasks, setCurrentTasks] = useState<Record<string, Task>>({});
+  const [agentScreenshots, setAgentScreenshots] = useState<Record<string, string>>({});
   const [formData, setFormData] = useState({
     name: '',
     llmProvider: '',
@@ -109,6 +110,18 @@ export function AgentManager({ onSessionSelect, realtimeEvents }: AgentManagerPr
       fetchAgents();
     }
   }, [realtimeEvents]);
+
+  // Periodically refresh screenshots for running agents
+  useEffect(() => {
+    const interval = setInterval(() => {
+      const runningAgents = agents.filter(a => a.status === 'running');
+      if (runningAgents.length > 0) {
+        fetchScreenshots(runningAgents.map(a => a.id));
+      }
+    }, 5000); // Refresh every 5 seconds
+
+    return () => clearInterval(interval);
+  }, [agents]);
 
   const fetchAgents = async () => {
     try {
@@ -137,6 +150,11 @@ export function AgentManager({ onSessionSelect, realtimeEvents }: AgentManagerPr
         }
       });
       setCurrentTasks(tasksMap);
+
+      // Fetch screenshots for all agents
+      if (agentsData.length > 0) {
+        fetchScreenshots(agentsData.map((a: Agent) => a.id));
+      }
     } catch (error) {
       console.error('Failed to fetch agents:', error);
     } finally {
@@ -171,6 +189,26 @@ export function AgentManager({ onSessionSelect, realtimeEvents }: AgentManagerPr
     } catch (error) {
       console.error('Failed to fetch models:', error);
     }
+  };
+
+  const fetchScreenshots = async (agentIds: string[]) => {
+    const screenshotPromises = agentIds.map(async (agentId) => {
+      try {
+        const response = await axios.get(getApiUrl(`/api/agents/${agentId}/screenshot`));
+        return { agentId, screenshot: response.data.data.screenshotUrl };
+      } catch {
+        return null;
+      }
+    });
+
+    const results = await Promise.all(screenshotPromises);
+    const screenshotsMap: Record<string, string> = {};
+    results.forEach((result) => {
+      if (result && result.screenshot) {
+        screenshotsMap[result.agentId] = result.screenshot;
+      }
+    });
+    setAgentScreenshots(screenshotsMap);
   };
 
   const createAgent = async () => {
@@ -561,6 +599,7 @@ export function AgentManager({ onSessionSelect, realtimeEvents }: AgentManagerPr
               onExport={handleExportAgent}
               onConfig={setSelectedAgentId}
               currentTask={currentTasks[agent.id]}
+              browserScreenshot={agentScreenshots[agent.id]}
             />
           ))}
         </div>

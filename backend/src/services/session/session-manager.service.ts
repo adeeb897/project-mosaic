@@ -328,6 +328,16 @@ export class SessionManager extends EventEmitter {
         break;
     }
 
+    // Extract screenshot from tool result if present
+    let screenshotUrl = action.screenshotUrl;
+    if (!screenshotUrl && action.details.result) {
+      const result = action.details.result as any;
+      if (result?.data?.screenshot?.base64) {
+        // Convert base64 screenshot to data URL for direct display
+        screenshotUrl = `data:image/png;base64,${result.data.screenshot.base64}`;
+      }
+    }
+
     return {
       id: action.id,
       timestamp: action.timestamp,
@@ -339,7 +349,7 @@ export class SessionManager extends EventEmitter {
       status: action.status,
       icon,
       color,
-      screenshotUrl: action.screenshotUrl,
+      screenshotUrl,
       taskId: action.taskId,
       taskTitle: task?.title,
       actionId: action.id,
@@ -386,6 +396,27 @@ export class SessionManager extends EventEmitter {
    */
   getSession(id: string): Session | undefined {
     return this.sessionRepo.findById(id) || undefined;
+  }
+
+  /**
+   * Get the latest screenshot for an agent (from most recent tool invocation)
+   */
+  getLatestAgentScreenshot(agentId: string): string | undefined {
+    // Get recent actions for this agent
+    const actions = this.actionRepo.findByAgentId(agentId, 50);
+
+    // Find the most recent action with a screenshot
+    for (const action of actions) {
+      if (action.details.result) {
+        const result = action.details.result as any;
+        if (result?.data?.screenshot?.base64) {
+          // Return as data URL
+          return `data:image/png;base64,${result.data.screenshot.base64}`;
+        }
+      }
+    }
+
+    return undefined;
   }
 
   /**

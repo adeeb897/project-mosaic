@@ -480,6 +480,30 @@ export function createAgentRoutes(
   });
 
   /**
+   * GET /api/agents/:id/screenshot
+   * Get the latest screenshot for an agent
+   */
+  router.get('/:id/screenshot', async (req, res) => {
+    try {
+      const screenshotUrl = sessionManager.getLatestAgentScreenshot(req.params.id);
+
+      if (!screenshotUrl) {
+        return res.status(404).json({
+          success: false,
+          error: 'No screenshot available for this agent',
+        });
+      }
+
+      res.json({
+        success: true,
+        data: { screenshotUrl },
+      });
+    } catch (error: unknown) {
+      res.status(500).json({ success: false, error: error instanceof Error ? error.message : String(error) });
+    }
+  });
+
+  /**
    * POST /api/agents/:id/start
    * Start an agent
    */
