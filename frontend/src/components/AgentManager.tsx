@@ -33,12 +33,12 @@ interface Agent {
   sessionId: string;
   createdAt: string;
   config: {
-    llmProvider?: string;
-    model?: string;
-    llm?: {
-      provider: string;
+    llm_config: {
       model: string;
-    }
+      model_endpoint_type?: string;
+      context_window?: number;
+      temperature?: number;
+    };
   };
   metadata?: {
     currentTaskId?: string;
@@ -559,6 +559,7 @@ export function AgentManager({ onSessionSelect, realtimeEvents }: AgentManagerPr
               onStop={pauseAgent}
               onDelete={deleteAgent}
               onExport={handleExportAgent}
+              onConfig={setSelectedAgentId}
               currentTask={currentTasks[agent.id]}
             />
           ))}

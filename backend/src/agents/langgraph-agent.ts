@@ -290,7 +290,7 @@ export class LangGraphAgent implements Agent {
       try {
         // Get next pending task assigned to this agent
         const tasks = await this.taskManager.queryTasks({
-          status: 'open',
+          status: ['open', 'in_progress'],
           assignedTo: this.id,
         });
 

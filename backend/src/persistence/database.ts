@@ -29,40 +29,36 @@ export class DatabaseService {
 
     logger.info('Initializing database schema...');
 
-    // Create agents table with Agent File (.af) format support
+    // Create agents table following official Agent File (.af) format
+    // See: https://github.com/letta-ai/letta/blob/main/letta/serialize_schemas/pydantic_agent_schema.py
     this.db.exec(`
       CREATE TABLE IF NOT EXISTS agents (
+        -- Internal tracking (Mosaic-specific, stored in metadata_)
         id TEXT PRIMARY KEY,
+
+        -- Agent File (.af) format fields (official schema)
+        -- Required fields
         name TEXT NOT NULL,
-
-        -- Legacy fields (kept for compatibility with existing code)
-        type TEXT NOT NULL,
-        status TEXT NOT NULL,
-        config TEXT NOT NULL,
-        root_task TEXT,
-        session_id TEXT,
-
-        -- Agent File (.af) format fields
-        agent_type TEXT,
-        description TEXT,
-        version TEXT,
-        system TEXT,                                    -- System prompt
-        llm_config TEXT NOT NULL,                       -- JSON: LLMConfig
-        embedding_config TEXT,                          -- JSON: EmbeddingConfig
+        agent_type TEXT NOT NULL DEFAULT 'langgraph-agent',
+        version TEXT NOT NULL DEFAULT '1.0.0',
+        system TEXT NOT NULL DEFAULT '',
+        llm_config TEXT NOT NULL,                       -- JSON: LLMConfig (required)
+        embedding_config TEXT NOT NULL DEFAULT '{}',    -- JSON: EmbeddingConfig (use empty object as default)
         core_memory TEXT NOT NULL DEFAULT '[]',         -- JSON: CoreMemoryBlock[]
         messages TEXT NOT NULL DEFAULT '[]',            -- JSON: Message[]
-        in_context_message_indices TEXT,                -- JSON: number[]
-        message_buffer_autoclear INTEGER DEFAULT 0,     -- Boolean (0/1)
+        in_context_message_indices TEXT NOT NULL DEFAULT '[]', -- JSON: number[]
+        message_buffer_autoclear INTEGER NOT NULL DEFAULT 0,   -- Boolean (0/1)
         tools TEXT NOT NULL DEFAULT '[]',               -- JSON: Tool[]
-        tool_rules TEXT,                                -- JSON: ToolRule[]
-        tool_exec_environment_variables TEXT,           -- JSON: ToolEnvVar[]
-        tags TEXT,                                      -- JSON: Tag[]
-        metadata_ TEXT,                                 -- JSON: metadata (underscore to match .af convention)
-        multi_agent_group TEXT,                         -- JSON: MultiAgentGroup
+        tool_rules TEXT NOT NULL DEFAULT '[]',          -- JSON: ToolRule[]
+        tool_exec_environment_variables TEXT NOT NULL DEFAULT '[]', -- JSON: ToolEnvVar[]
+        tags TEXT NOT NULL DEFAULT '[]',                -- JSON: Tag[]
+        created_at TEXT NOT NULL,                       -- ISO timestamp string
+        updated_at TEXT NOT NULL,                       -- ISO timestamp string
 
-        -- Timestamps
-        created_at INTEGER NOT NULL,
-        updated_at INTEGER NOT NULL
+        -- Optional fields
+        description TEXT,                               -- Optional description
+        metadata_ TEXT,                                 -- JSON: Optional[Dict]
+        multi_agent_group TEXT                          -- JSON: Optional[MultiAgentGroup]
       )
     `);
 

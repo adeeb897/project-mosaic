@@ -19,7 +19,7 @@ import type {
   LLMConfig,
   EmbeddingConfig,
   MultiAgentGroup,
-} from '../../shared/types/agent-file';
+} from '@mosaic/shared';
 
 export class AgentFileService {
   /**
@@ -40,50 +40,31 @@ export class AgentFileService {
       messages = messages.slice(-messageLimit);
     }
 
-    // Build the agent file
+    // Build the agent file following official .af format
     const agentFile: AgentFile = {
-      // Basic metadata
       name: agent.name,
-      agent_type: agent.agentType || agent.type,
+      agent_type: agent.agent_type,
       description: agent.description,
-      version: agent.version || '1.0.0',
-      created_at: agent.createdAt.toISOString(),
-      updated_at: agent.updatedAt.toISOString(),
-
-      // System configuration
+      version: agent.version,
+      created_at: agent.created_at,
+      updated_at: agent.updated_at,
       system: agent.system,
-      llm_config: agent.llmConfig,
-      embedding_config: agent.embeddingConfig,
-
-      // Memory and context
-      core_memory: includeMemory ? agent.coreMemory : [],
+      llm_config: agent.llm_config,
+      // Only include embedding_config if it has the required embedding_model field
+      embedding_config: (agent.embedding_config as any)?.embedding_model ? (agent.embedding_config as EmbeddingConfig) : undefined,
+      core_memory: includeMemory ? agent.core_memory : [],
       messages: includeMessages ? messages : [],
-      in_context_message_indices: agent.inContextMessageIndices,
-      message_buffer_autoclear: agent.messageBufferAutoclear,
-
-      // Tools and rules
+      in_context_message_indices: agent.in_context_message_indices,
+      message_buffer_autoclear: agent.message_buffer_autoclear,
       tools: includeTools ? agent.tools : [],
-      tool_rules: agent.toolRules,
-      tool_exec_environment_variables: agent.toolExecEnvironmentVariables,
-
-      // Organization
+      tool_rules: agent.tool_rules,
+      tool_exec_environment_variables: agent.tool_exec_environment_variables,
       tags: agent.tags,
       metadata_: {
         ...agent.metadata_,
-        // Add mosaic-specific metadata
-        mosaic: {
-          id: agent.id,
-          type: agent.type,
-          status: agent.status,
-          sessionId: agent.sessionId,
-          rootTask: agent.rootTask,
-          config: agent.config,
-          metadata: agent.metadata,
-        },
+        // Mosaic-specific metadata is already stored in agent.metadata_.mosaic
       },
-
-      // Multi-agent support
-      multi_agent_group: agent.multiAgentGroup,
+      multi_agent_group: agent.multi_agent_group,
     };
 
     return agentFile;
@@ -114,41 +95,36 @@ export class AgentFileService {
     // Extract Mosaic-specific metadata if present
     const mosaicMetadata = (agentFile.metadata_?.mosaic as any) || {};
 
-    // Build the agent record
+    // Build the agent record following official .af format
+    // Ensure all required fields have valid values
+    const now = new Date().toISOString();
+
     const agentRecord: Partial<AgentRecord> = {
-      // ID handling based on options
+      // ID handling - use from mosaic metadata if preserving, otherwise generate new
       id: preserveId && mosaicMetadata.id ? mosaicMetadata.id : uuidv4(),
 
-      // Basic metadata
+      // Required fields with defaults
       name: agentFile.name,
-      type: mosaicMetadata.type || agentFile.agent_type || 'langgraph-agent',
-      status: mosaicMetadata.status || 'idle',
-      config: mosaicMetadata.config || {},
-      metadata: mosaicMetadata.metadata || {},
-      rootTask: mosaicMetadata.rootTask,
-      sessionId: mosaicMetadata.sessionId,
-
-      // Timestamps - preserve original or use current
-      createdAt: agentFile.created_at ? new Date(agentFile.created_at) : new Date(),
-      updatedAt: new Date(),
-
-      // Agent File (.af) format fields
-      agentType: agentFile.agent_type,
-      description: agentFile.description,
-      version: agentFile.version,
-      system: agentFile.system,
-      llmConfig: agentFile.llm_config,
-      embeddingConfig: agentFile.embedding_config,
-      coreMemory: agentFile.core_memory || [],
+      agent_type: agentFile.agent_type || 'langgraph-agent',
+      version: agentFile.version || '1.0.0',
+      system: agentFile.system || '',
+      llm_config: agentFile.llm_config,
+      embedding_config: agentFile.embedding_config || {},
+      core_memory: agentFile.core_memory || [],
       messages: agentFile.messages || [],
-      inContextMessageIndices: agentFile.in_context_message_indices,
-      messageBufferAutoclear: agentFile.message_buffer_autoclear,
+      in_context_message_indices: agentFile.in_context_message_indices || [],
+      message_buffer_autoclear: agentFile.message_buffer_autoclear ?? false,
       tools: agentFile.tools || [],
-      toolRules: agentFile.tool_rules,
-      toolExecEnvironmentVariables: agentFile.tool_exec_environment_variables,
-      tags: agentFile.tags,
+      tool_rules: agentFile.tool_rules || [],
+      tool_exec_environment_variables: agentFile.tool_exec_environment_variables || [],
+      tags: agentFile.tags || [],
+      created_at: agentFile.created_at || now,
+      updated_at: agentFile.updated_at || now,
+
+      // Optional fields
+      description: agentFile.description,
       metadata_: agentFile.metadata_,
-      multiAgentGroup: agentFile.multi_agent_group,
+      multi_agent_group: agentFile.multi_agent_group,
     };
 
     return agentRecord;

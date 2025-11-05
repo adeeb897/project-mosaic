@@ -29,12 +29,37 @@ export function createAgentRoutes(
   const db = getDatabase();
   const agentRepo = new AgentRepository(db.getDb());
 
-  // Helper function to get LLM provider from registry
-  const getLLMProvider = (providerName?: string): LLMProviderPlugin => {
+  // Helper function to get LLM provider from registry by name or from llm_config
+  const getLLMProvider = (input?: string | { model_endpoint_type?: string; model?: string }): LLMProviderPlugin => {
     const providers = pluginRegistry.getByType('llm-provider') as LLMProviderPlugin[];
 
     if (!providers || providers.length === 0) {
       throw new Error('No LLM providers available');
+    }
+
+    let providerName: string | undefined;
+
+    // Handle string input (legacy provider name)
+    if (typeof input === 'string') {
+      providerName = input;
+    }
+    // Handle llm_config object input (.af format)
+    else if (input && typeof input === 'object') {
+      // Map model_endpoint_type to provider name
+      const endpointType = input.model_endpoint_type;
+      if (endpointType === 'openai') {
+        providerName = 'openai-provider';
+      } else if (endpointType === 'anthropic') {
+        providerName = 'anthropic-provider';
+      }
+      // Fallback: try to infer from model name
+      if (!providerName && input.model) {
+        if (input.model.includes('gpt')) {
+          providerName = 'openai-provider';
+        } else if (input.model.includes('claude')) {
+          providerName = 'anthropic-provider';
+        }
+      }
     }
 
     // If provider name specified, find it
@@ -61,40 +86,41 @@ export function createAgentRoutes(
       }
 
       for (const savedAgent of savedAgents) {
+        // Get Mosaic-specific metadata
+        const mosaicMeta = savedAgent.metadata_?.mosaic as any;
+
         // Skip agents without sessionId
-        if (!savedAgent.sessionId) {
+        if (!mosaicMeta?.sessionId) {
           console.warn(`Skipping agent ${savedAgent.id} without sessionId`);
           continue;
         }
 
-        // Restore MCP servers from config if available
+        // Restore MCP servers from metadata if available
         let restoredMcpServers = mcpServers;
-        let llmProviderName: string | undefined;
-        if (savedAgent.config && typeof savedAgent.config === 'object') {
-          const config = savedAgent.config as { mcpServerNames?: string[]; llmProvider?: string };
+        if (mosaicMeta?.config && typeof mosaicMeta.config === 'object') {
+          const config = mosaicMeta.config as { mcpServerNames?: string[]; llmProvider?: string; model?: string; useE2B?: boolean };
           if (config.mcpServerNames && Array.isArray(config.mcpServerNames)) {
             restoredMcpServers = mcpServers.filter(server =>
               config.mcpServerNames!.includes(server.name)
             );
           }
-          llmProviderName = config.llmProvider;
         }
 
-        // Get the LLM provider
-        const llmProvider = getLLMProvider(llmProviderName);
+        // Get the LLM provider from llm_config (.af format)
+        const llmProvider = getLLMProvider(savedAgent.llm_config);
         const memoryManager = getMemoryManager();
 
         const agent = new LangGraphAgent({
           name: savedAgent.name,
           llmProvider,
-          model: (savedAgent.config as any)?.model,
+          model: savedAgent.llm_config.model,
           mcpServers: restoredMcpServers,
           eventBus: (taskManager as unknown as TaskManagerWithEventBus).eventBus,
           taskManager,
           sessionManager,
           memoryManager,
           maxDepth: 3,
-          useE2B: (savedAgent.config as any)?.useE2B ?? false,
+          useE2B: mosaicMeta?.config?.useE2B ?? false,
         });
 
         // Override the generated ID with saved ID
@@ -147,16 +173,29 @@ export function createAgentRoutes(
    */
   router.get('/', async (req, res) => {
     try {
-      const agents = Array.from(activeAgents.values()).map((agent) => ({
-        id: agent.id,
-        name: agent.name,
-        type: agent.type,
-        status: agent.status,
-        rootTask: agent.metadata.rootTask,
-        sessionId: (agent as LangGraphAgent).getConfiguration().sessionId,
-        createdAt: agent.metadata.createdAt,
-        config: agent.getConfiguration()
-      }));
+      const agents = Array.from(activeAgents.values()).map((agent) => {
+        // Get agent record from database to include llm_config
+        const agentRecord = agentRepo.findById(agent.id);
+        const runtimeConfig = agent.getConfiguration();
+
+        return {
+          id: agent.id,
+          name: agent.name,
+          type: agent.type,
+          status: agent.status,
+          rootTask: agent.metadata.rootTask,
+          sessionId: (agent as LangGraphAgent).getConfiguration().sessionId,
+          createdAt: agent.metadata.createdAt,
+          config: {
+            ...runtimeConfig,
+            llm_config: agentRecord?.llm_config || {
+              model: runtimeConfig.llm?.model || 'unknown',
+              model_endpoint_type: runtimeConfig.llm?.provider === 'anthropic-provider' ? 'anthropic' : 'openai',
+            },
+          },
+          metadata: agent.metadata,
+        };
+      });
 
       res.json({ success: true, data: agents });
     } catch (error: unknown) {
@@ -170,7 +209,17 @@ export function createAgentRoutes(
    */
   router.post('/', async (req, res) => {
     try {
-      const { name, rootTask, sessionId, maxDepth, mcpServerNames, llmProvider: llmProviderName, model, useE2B } = req.body;
+      const {
+        name,
+        rootTask,
+        sessionId,
+        maxDepth,
+        mcpServerNames,
+        llmProvider: llmProviderName,
+        model,
+        useE2B,
+        llm_config: providedLlmConfig
+      } = req.body;
 
       if (!name) {
         return res.status(400).json({
@@ -179,8 +228,26 @@ export function createAgentRoutes(
         });
       }
 
-      // Get the LLM provider
-      const llmProvider = getLLMProvider(llmProviderName);
+      // Build llm_config in .af format
+      // Accept either new llm_config format or legacy llmProvider/model
+      let llmConfig: any;
+      if (providedLlmConfig) {
+        llmConfig = providedLlmConfig;
+      } else {
+        // Legacy format: build llm_config from provider and model
+        llmConfig = {
+          model: model || 'gpt-4',
+          model_endpoint_type: llmProviderName === 'anthropic-provider' ? 'anthropic' : 'openai',
+          model_endpoint: llmProviderName === 'anthropic-provider'
+            ? 'https://api.anthropic.com/v1'
+            : 'https://api.openai.com/v1',
+          context_window: 128000,
+          temperature: 0.7,
+        };
+      }
+
+      // Get the LLM provider from llm_config
+      const llmProvider = getLLMProvider(llmConfig);
 
       // Use existing session or create new one
       let session;
@@ -215,7 +282,7 @@ export function createAgentRoutes(
       const agent = new LangGraphAgent({
         name,
         llmProvider,
-        model,
+        model: llmConfig.model,
         mcpServers: selectedMcpServers,
         eventBus: (taskManager as unknown as TaskManagerWithEventBus).eventBus,
         taskManager,
@@ -228,45 +295,39 @@ export function createAgentRoutes(
       // Initialize the LangGraph agent
       await agent.initialize();
 
-      // Persist agent to database with .af format fields
+      // Persist agent to database with .af format
+      const now = new Date().toISOString();
       agentRepo.save({
         id: agent.id,
         name: agent.name,
-        type: agent.type,
-        status: agent.status,
-        config: {
-          ...agent.config,
-          mcpServerNames: selectedMcpServers.map(s => s.name),
-          llmProvider: llmProvider.name,
-          model,
-          useE2B,
-        } as Record<string, unknown>,
-        metadata: agent.metadata || {},
-        rootTask,
-        sessionId: session.id,
-        createdAt: new Date(),
-        updatedAt: new Date(),
-
-        // Agent File (.af) format fields
-        agentType: agent.type,
-        description: `Agent created on ${new Date().toISOString()}`,
+        agent_type: agent.type,
+        description: `Agent created on ${now}`,
         version: '1.0.0',
-        system: undefined, // Will be set by LangGraphAgent if needed
-        llmConfig: {
-          model: model || 'gpt-4',
-          context_window: 128000,
-        },
-        embeddingConfig: undefined,
-        coreMemory: [],
+        system: '',
+        llm_config: llmConfig,
+        embedding_config: {},
+        core_memory: [],
         messages: [],
-        inContextMessageIndices: undefined,
-        messageBufferAutoclear: false,
+        in_context_message_indices: [],
+        message_buffer_autoclear: false,
         tools: [],
-        toolRules: undefined,
-        toolExecEnvironmentVariables: undefined,
-        tags: undefined,
-        metadata_: undefined,
-        multiAgentGroup: undefined,
+        tool_rules: [],
+        tool_exec_environment_variables: [],
+        tags: [],
+        metadata_: {
+          mosaic: {
+            status: agent.status,
+            sessionId: session.id,
+            rootTask,
+            config: {
+              ...agent.config,
+              mcpServerNames: selectedMcpServers.map(s => s.name),
+              useE2B,
+            },
+          },
+        },
+        created_at: now,
+        updated_at: now,
       });
 
       activeAgents.set(agent.id, agent);
@@ -321,25 +382,97 @@ export function createAgentRoutes(
   });
 
   /**
-   * GET /api/agents/:id/config
-   * Get full agent configuration
+   * GET /api/agents/:id/messages
+   * Get agent conversation history from database
    */
-  router.get('/:id/config', async (req, res) => {
+  router.get('/:id/messages', async (req, res) => {
     try {
-      const agent = activeAgents.get(req.params.id);
+      const agentRecord = agentRepo.findById(req.params.id);
 
-      if (!agent) {
+      if (!agentRecord) {
         return res.status(404).json({
           success: false,
           error: 'Agent not found',
         });
       }
 
-      const config = (agent as LangGraphAgent).getConfiguration();
-
+      // Return messages from the database
       res.json({
         success: true,
-        data: config,
+        data: {
+          messages: agentRecord.messages || [],
+        },
+      });
+    } catch (error: unknown) {
+      res.status(500).json({ success: false, error: error instanceof Error ? error.message : String(error) });
+    }
+  });
+
+  /**
+   * GET /api/agents/:id/config
+   * Get full agent configuration including .af format data
+   */
+  router.get('/:id/config', async (req, res) => {
+    try {
+      const agent = activeAgents.get(req.params.id);
+      const agentRecord = agentRepo.findById(req.params.id);
+
+      if (!agent && !agentRecord) {
+        return res.status(404).json({
+          success: false,
+          error: 'Agent not found',
+        });
+      }
+
+      // Get runtime configuration from active agent
+      const runtimeConfig = agent ? (agent as LangGraphAgent).getConfiguration() : null;
+
+      // Get all currently available tools from MCP servers
+      const availableTools: any[] = [];
+      mcpServers.forEach(server => {
+        const serverTools = server.getTools();
+        serverTools.forEach(tool => {
+          availableTools.push({
+            name: tool.name,
+            description: tool.description,
+            source_type: 'mcp_server',
+            server: server.name,
+            json_schema: {
+              type: 'object',
+              parameters: tool.inputSchema,
+            },
+          });
+        });
+      });
+
+      // Identify tools that are stored but no longer available
+      const storedTools = agentRecord?.tools || [];
+      const availableToolNames = new Set(availableTools.map(t => `${t.server}.${t.name}`));
+      const missingTools: string[] = [];
+
+      storedTools.forEach(tool => {
+        const toolIdentifier = tool.source_type === 'mcp_server' && (tool as any).server
+          ? `${(tool as any).server}.${tool.name}`
+          : tool.name;
+
+        if (!availableToolNames.has(toolIdentifier)) {
+          missingTools.push(tool.name);
+        }
+      });
+
+      // Combine runtime config with full .af format data from database
+      res.json({
+        success: true,
+        data: {
+          // Runtime configuration (if agent is active)
+          ...runtimeConfig,
+          // Full .af format data from database
+          agentFile: agentRecord,
+          // Currently available tools from all MCP servers
+          availableTools,
+          // Tools that are in the agent config but no longer available
+          missingTools,
+        },
       });
     } catch (error: unknown) {
       res.status(500).json({ success: false, error: error instanceof Error ? error.message : String(error) });
@@ -484,6 +617,65 @@ export function createAgentRoutes(
   });
 
   /**
+   * PATCH /api/agents/:id
+   * Update agent configuration (.af format fields)
+   */
+  router.patch('/:id', async (req, res) => {
+    try {
+      const agent = activeAgents.get(req.params.id);
+      const agentRecord = agentRepo.findById(req.params.id);
+
+      if (!agent && !agentRecord) {
+        return res.status(404).json({
+          success: false,
+          error: 'Agent not found',
+        });
+      }
+
+      // Prevent updates while agent is running
+      if (agent && agent.status === 'running') {
+        return res.status(400).json({
+          success: false,
+          error: 'Cannot update configuration while agent is running. Stop the agent first.',
+        });
+      }
+
+      const { core_memory, llm_config, tool_exec_environment_variables } = req.body;
+
+      // Build update object with only provided fields
+      const updates: any = {};
+
+      if (core_memory !== undefined) {
+        updates.core_memory = core_memory;
+      }
+
+      if (llm_config !== undefined) {
+        updates.llm_config = llm_config;
+      }
+
+      if (tool_exec_environment_variables !== undefined) {
+        updates.tool_exec_environment_variables = tool_exec_environment_variables;
+      }
+
+      // Update timestamp
+      updates.updated_at = new Date().toISOString();
+
+      // Update in database
+      agentRepo.update(req.params.id, updates);
+
+      res.json({
+        success: true,
+        data: {
+          id: req.params.id,
+          message: 'Agent configuration updated successfully',
+        },
+      });
+    } catch (error: unknown) {
+      res.status(500).json({ success: false, error: error instanceof Error ? error.message : String(error) });
+    }
+  });
+
+  /**
    * DELETE /api/agents/:id
    * Remove an agent
    */
@@ -595,39 +787,12 @@ export function createAgentRoutes(
         agent.metadata.rootTask = rootTask;
       }
 
-      // First, get existing agent from database to preserve .af fields
-      const existingAgent = agentRepo.findById(agent.id);
-
-      // Save to database
-      agentRepo.save({
-        id: agent.id,
-        name: agent.name,
-        type: agent.type,
+      // Update Mosaic metadata in existing agent record
+      agentRepo.updateMosaicMetadata(agent.id, {
         status: agent.status,
-        config: { ...agent.config } as Record<string, unknown>,
-        metadata: agent.metadata || {},
-        rootTask: agent.metadata.rootTask,
         sessionId: (agent as LangGraphAgent).getConfiguration().sessionId,
-        createdAt: new Date(agent.metadata.createdAt),
-        updatedAt: new Date(),
-
-        // Preserve existing .af fields or use defaults
-        agentType: existingAgent?.agentType || agent.type,
-        description: existingAgent?.description,
-        version: existingAgent?.version || '1.0.0',
-        system: existingAgent?.system,
-        llmConfig: existingAgent?.llmConfig || { model: 'gpt-4', context_window: 128000 },
-        embeddingConfig: existingAgent?.embeddingConfig,
-        coreMemory: existingAgent?.coreMemory || [],
-        messages: existingAgent?.messages || [],
-        inContextMessageIndices: existingAgent?.inContextMessageIndices,
-        messageBufferAutoclear: existingAgent?.messageBufferAutoclear || false,
-        tools: existingAgent?.tools || [],
-        toolRules: existingAgent?.toolRules,
-        toolExecEnvironmentVariables: existingAgent?.toolExecEnvironmentVariables,
-        tags: existingAgent?.tags,
-        metadata_: existingAgent?.metadata_,
-        multiAgentGroup: existingAgent?.multiAgentGroup,
+        rootTask: agent.metadata.rootTask,
+        config: { ...agent.config },
       });
 
       res.json({
@@ -636,216 +801,6 @@ export function createAgentRoutes(
           id: agent.id,
           message: 'Agent configuration updated',
           config: (agent as LangGraphAgent).getConfiguration(),
-        },
-      });
-    } catch (error: unknown) {
-      res.status(500).json({ success: false, error: error instanceof Error ? error.message : String(error) });
-    }
-  });
-
-  // ===== Task Management Endpoints =====
-
-  /**
-   * GET /api/agents/:id/tasks
-   * Get all tasks assigned to an agent
-   */
-  router.get('/:id/tasks', async (req, res) => {
-    try {
-      const agent = activeAgents.get(req.params.id);
-
-      if (!agent) {
-        return res.status(404).json({
-          success: false,
-          error: 'Agent not found',
-        });
-      }
-
-      // Get tasks from taskManager where assignedTo or agentId matches
-      const tasks = taskManager.queryTasks({
-        assignedTo: agent.id,
-      });
-
-      res.json({
-        success: true,
-        data: tasks,
-      });
-    } catch (error: unknown) {
-      res.status(500).json({ success: false, error: error instanceof Error ? error.message : String(error) });
-    }
-  });
-
-  /**
-   * POST /api/agents/:id/tasks
-   * Assign an existing task to an agent
-   */
-  router.post('/:id/tasks', async (req, res) => {
-    try {
-      const agent = activeAgents.get(req.params.id);
-
-      if (!agent) {
-        return res.status(404).json({
-          success: false,
-          error: 'Agent not found',
-        });
-      }
-
-      const { taskId: taskId } = req.body;
-
-      if (!taskId) {
-        return res.status(400).json({
-          success: false,
-          error: 'taskId is required',
-        });
-      }
-
-      const task = taskManager.getTask(taskId);
-
-      if (!task) {
-        return res.status(404).json({
-          success: false,
-          error: 'Task not found',
-        });
-      }
-
-      // Update task to assign to this agent
-      await taskManager.updateTask({
-        taskId: taskId,
-        assignedTo: agent.id,
-      });
-
-      // Add to agent's active tasks
-      if (!agent.metadata.activeTaskIds) {
-        agent.metadata.activeTaskIds = [];
-      }
-      if (!agent.metadata.activeTaskIds.includes(taskId)) {
-        agent.metadata.activeTaskIds.push(taskId);
-      }
-
-      // Update database
-      agentRepo.save({
-        id: agent.id,
-        name: agent.name,
-        type: agent.type,
-        status: agent.status,
-        config: { ...agent.config } as Record<string, unknown>,
-        metadata: agent.metadata || {},
-        rootTask: agent.metadata.rootTask,
-        sessionId: (agent as LangGraphAgent).getConfiguration().sessionId,
-        createdAt: new Date(agent.metadata.createdAt),
-        updatedAt: new Date(),
-      });
-
-      res.json({
-        success: true,
-        data: {
-          message: 'Task assigned to agent',
-          task: taskManager.getTask(taskId),
-        },
-      });
-    } catch (error: unknown) {
-      res.status(500).json({ success: false, error: error instanceof Error ? error.message : String(error) });
-    }
-  });
-
-  /**
-   * DELETE /api/agents/:id/tasks/:taskId
-   * Unassign a task from an agent
-   */
-  router.delete('/:id/tasks/:taskId', async (req, res) => {
-    try {
-      const agent = activeAgents.get(req.params.id);
-
-      if (!agent) {
-        return res.status(404).json({
-          success: false,
-          error: 'Agent not found',
-        });
-      }
-
-      const { taskId: taskId } = req.params;
-
-      // Remove from agent's active tasks
-      if (agent.metadata.activeTaskIds) {
-        agent.metadata.activeTaskIds = agent.metadata.activeTaskIds.filter(
-          (id: string) => id !== taskId
-        );
-      }
-
-      // Update task to unassign
-      await taskManager.updateTask({
-        taskId: taskId,
-        assignedTo: undefined,
-      });
-
-      // Update database
-      agentRepo.save({
-        id: agent.id,
-        name: agent.name,
-        type: agent.type,
-        status: agent.status,
-        config: { ...agent.config } as Record<string, unknown>,
-        metadata: agent.metadata || {},
-        rootTask: agent.metadata.rootTask,
-        sessionId: (agent as LangGraphAgent).getConfiguration().sessionId,
-        createdAt: new Date(agent.metadata.createdAt),
-        updatedAt: new Date(),
-      });
-
-      res.json({
-        success: true,
-        data: { message: 'Task unassigned from agent' },
-      });
-    } catch (error: unknown) {
-      res.status(500).json({ success: false, error: error instanceof Error ? error.message : String(error) });
-    }
-  });
-
-  /**
-   * POST /api/agents/:id/tasks/:taskId/start
-   * Start working on a specific task
-   */
-  router.post('/:id/tasks/:taskId/start', async (req, res) => {
-    try {
-      const agent = activeAgents.get(req.params.id);
-
-      if (!agent) {
-        return res.status(404).json({
-          success: false,
-          error: 'Agent not found',
-        });
-      }
-
-      if (agent.status === 'running') {
-        return res.status(400).json({
-          success: false,
-          error: 'Agent is already running',
-        });
-      }
-
-      const { taskId } = req.params;
-      const task = taskManager.getTask(taskId);
-
-      if (!task) {
-        return res.status(404).json({
-          success: false,
-          error: 'Task not found',
-        });
-      }
-
-      // Set as current root task
-      agent.metadata.rootTask = task.title;
-      (agent as any).rootTaskId = taskId;
-
-      // Start the agent
-      await agent.start();
-
-      res.json({
-        success: true,
-        data: {
-          id: agent.id,
-          status: agent.status,
-          taskId: taskId,
-          message: 'Agent started with task',
         },
       });
     } catch (error: unknown) {
@@ -931,17 +886,11 @@ export function createAgentRoutes(
       }
 
       // Update database
-      agentRepo.save({
-        id: agent.id,
-        name: agent.name,
-        type: agent.type,
+      agentRepo.updateMosaicMetadata(agent.id, {
         status: agent.status,
-        config: { ...agent.config } as Record<string, unknown>,
-        metadata: agent.metadata || {},
+        config: { ...agent.config },
         rootTask: agent.metadata.rootTask,
         sessionId: (agent as LangGraphAgent).getConfiguration().sessionId,
-        createdAt: new Date(agent.metadata.createdAt),
-        updatedAt: new Date(),
       });
 
       res.json({
@@ -995,17 +944,11 @@ export function createAgentRoutes(
       }
 
       // Update database
-      agentRepo.save({
-        id: agent.id,
-        name: agent.name,
-        type: agent.type,
+      agentRepo.updateMosaicMetadata(agent.id, {
         status: agent.status,
-        config: { ...agent.config } as Record<string, unknown>,
-        metadata: agent.metadata || {},
+        config: { ...agent.config },
         rootTask: agent.metadata.rootTask,
         sessionId: (agent as LangGraphAgent).getConfiguration().sessionId,
-        createdAt: new Date(agent.metadata.createdAt),
-        updatedAt: new Date(),
       });
 
       res.json({
@@ -1369,8 +1312,9 @@ export function createAgentRoutes(
   router.post('/:id/message', async (req, res) => {
     try {
       const agent = activeAgents.get(req.params.id);
+      const agentRecord = agentRepo.findById(req.params.id);
 
-      if (!agent) {
+      if (!agent && !agentRecord) {
         return res.status(404).json({
           success: false,
           error: 'Agent not found',
@@ -1386,20 +1330,83 @@ export function createAgentRoutes(
         });
       }
 
-      // Create a task from the user message
-      const task = await taskManager.createTask({
-        title: `User Message: ${message.substring(0, 50)}...`,
-        description: message,
-        priority: 'medium',
-        createdBy: 'user',
-        assignedTo: agent.id,
-      });
+      const now = new Date().toISOString();
+
+      // Create user message following .af format
+      const userMessage = {
+        role: 'user' as const,
+        content: message,
+        created_at: now,
+        updated_at: now,
+      };
+
+      // Get current messages from database
+      const currentMessages = agentRecord ? [...agentRecord.messages] : [];
+      currentMessages.push(userMessage);
+
+      // Update agent record with new message
+      if (agentRecord) {
+        agentRepo.update(req.params.id, {
+          messages: currentMessages,
+        });
+      }
+
+      // Invoke the agent to process the message (regardless of running/stopped status)
+      // Note: running/stopped only controls task queue processing
+      let assistantResponseContent = 'I received your message.';
+
+      if (agent) {
+        try {
+          // Invoke the agent directly with the message
+          const agentInstance = agent as any;
+          if (agentInstance.agent && agentInstance.checkpointer) {
+            console.log('[Message Handler] Invoking agent for message processing');
+            const response = await agentInstance.agent.invoke(
+              {
+                messages: [{ role: 'user', content: message }],
+              },
+              {
+                configurable: {
+                  thread_id: agentInstance.sessionId,
+                },
+              }
+            );
+
+            // Extract the assistant's response
+            if (response.messages && response.messages.length > 0) {
+              const lastMessage = response.messages[response.messages.length - 1];
+              assistantResponseContent = lastMessage.content || 'Agent processed the message.';
+            }
+          }
+        } catch (error) {
+          console.error('[Message Handler] Error invoking agent:', error);
+          assistantResponseContent = 'I encountered an error processing your message. Please try again.';
+        }
+      } else {
+        assistantResponseContent = 'Agent instance not found. Please ensure the agent is properly initialized.';
+      }
+
+      // Create assistant response message
+      const assistantMessage = {
+        role: 'assistant' as const,
+        content: assistantResponseContent,
+        created_at: new Date().toISOString(),
+        updated_at: new Date().toISOString(),
+      };
+
+      // Add assistant message to database
+      if (agentRecord) {
+        currentMessages.push(assistantMessage);
+        agentRepo.update(req.params.id, {
+          messages: currentMessages,
+        });
+      }
 
       res.json({
         success: true,
         data: {
-          taskId: task.id,
-          reply: `Message received and task created. The agent will process your request.`,
+          message: assistantMessage,
+          reply: assistantMessage.content,
         },
       });
     } catch (error: unknown) {
@@ -1569,8 +1576,9 @@ export function createAgentRoutes(
 
       // Create and initialize the agent in memory
       const mosaicMetadata = importedAgent.metadata_?.mosaic as any;
-      const llmProviderName = mosaicMetadata?.config?.llmProvider;
-      const llmProvider = getLLMProvider(llmProviderName);
+
+      // Get the LLM provider from llm_config (.af format)
+      const llmProvider = getLLMProvider(importedAgent.llm_config!);
       const memoryManager = getMemoryManager();
 
       // Filter MCP servers if specified in config
@@ -1589,7 +1597,7 @@ export function createAgentRoutes(
       const agent = new LangGraphAgent({
         name: importedAgent.name!,
         llmProvider,
-        model: mosaicMetadata?.config?.model,
+        model: importedAgent.llm_config!.model,
         mcpServers: selectedMcpServers,
         eventBus: (taskManager as unknown as TaskManagerWithEventBus).eventBus,
         taskManager,

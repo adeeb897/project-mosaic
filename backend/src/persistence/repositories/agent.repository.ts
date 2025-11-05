@@ -15,72 +15,71 @@ import type {
   LLMConfig,
   EmbeddingConfig,
   MultiAgentGroup,
-} from '../../../shared/types/agent-file';
+} from '@mosaic/shared';
 
-export interface AgentConfig {
-  [key: string]: unknown;
-}
-
+// Database row interface matching the SQLite schema
 interface AgentRow {
   id: string;
   name: string;
-  type: string;
-  status: string;
-  config: string;
-  metadata: string | null;
-  root_task: string | null;
-  session_id: string | null;
-  created_at: number;
-  updated_at: number;
-
-  // Agent File (.af) format fields
-  agent_type: string | null;
+  agent_type: string;
   description: string | null;
-  version: string | null;
-  system: string | null;
+  version: string;
+  system: string;
   llm_config: string;
-  embedding_config: string | null;
+  embedding_config: string;
   core_memory: string;
   messages: string;
-  in_context_message_indices: string | null;
+  in_context_message_indices: string;
   message_buffer_autoclear: number;
   tools: string;
-  tool_rules: string | null;
-  tool_exec_environment_variables: string | null;
-  tags: string | null;
+  tool_rules: string;
+  tool_exec_environment_variables: string;
+  tags: string;
   metadata_: string | null;
   multi_agent_group: string | null;
+  created_at: string;
+  updated_at: string;
 }
 
-export interface AgentRecord {
-  id: string;
-  name: string;
-  type: string;
-  status: 'idle' | 'running' | 'paused' | 'stopped' | 'error';
-  config: AgentConfig;
-  metadata: Record<string, unknown>;
-  rootTask?: string;
+// Mosaic-specific metadata stored in metadata_.mosaic
+export interface MosaicMetadata {
+  status?: 'idle' | 'running' | 'paused' | 'stopped' | 'error';
   sessionId?: string;
-  createdAt: Date;
-  updatedAt: Date;
+  rootTask?: string;
+  [key: string]: unknown;
+}
 
-  // Agent File (.af) format fields
-  agentType?: string;
-  description?: string;
-  version?: string;
-  system?: string;
-  llmConfig: LLMConfig;
-  embeddingConfig?: EmbeddingConfig;
-  coreMemory: CoreMemoryBlock[];
+// Agent record following official .af format
+// See: https://github.com/letta-ai/letta/blob/main/letta/serialize_schemas/pydantic_agent_schema.py
+export interface AgentRecord {
+  // Internal ID (stored as PK but also in metadata_.mosaic.id)
+  id: string;
+
+  // Required fields (per official .af schema)
+  name: string;
+  agent_type: string;
+  version: string;
+  system: string;
+  llm_config: LLMConfig;
+  embedding_config: EmbeddingConfig | Record<string, never>; // Can be empty object
+  core_memory: CoreMemoryBlock[];
   messages: Message[];
-  inContextMessageIndices?: number[];
-  messageBufferAutoclear?: boolean;
+  in_context_message_indices: number[];
+  message_buffer_autoclear: boolean;
   tools: Tool[];
-  toolRules?: ToolRule[];
-  toolExecEnvironmentVariables?: ToolEnvVar[];
-  tags?: Tag[];
-  metadata_?: Record<string, unknown>;
-  multiAgentGroup?: MultiAgentGroup;
+  tool_rules: ToolRule[];
+  tool_exec_environment_variables: ToolEnvVar[];
+  tags: Tag[];
+  created_at: string;  // ISO 8601 timestamp
+  updated_at: string;  // ISO 8601 timestamp
+
+  // Optional fields
+  description?: string;
+  metadata_?: {
+    mosaic?: MosaicMetadata;
+    [key: string]: unknown;
+  };
+  multi_agent_group?: MultiAgentGroup;
 }
 
 export class AgentRepository extends BaseRepository {
@@ -95,74 +94,60 @@ export class AgentRepository extends BaseRepository {
     return {
       id: row.id,
       name: row.name,
-      type: row.type,
-      status: row.status as AgentRecord['status'],
-      config: this.deserializeJson(row.config)!,
-      metadata: this.deserializeJson(row.metadata) || {},
-      rootTask: row.root_task || undefined,
-      sessionId: row.session_id || undefined,
-      createdAt: this.fromTimestamp(row.created_at)!,
-      updatedAt: this.fromTimestamp(row.updated_at)!,
-
-      // Agent File (.af) format fields
-      agentType: row.agent_type || undefined,
+      agent_type: row.agent_type,
       description: row.description || undefined,
-      version: row.version || undefined,
-      system: row.system || undefined,
-      llmConfig: this.deserializeJson(row.llm_config) || { model: 'gpt-4' },
-      embeddingConfig: this.deserializeJson(row.embedding_config) || undefined,
-      coreMemory: this.deserializeJson(row.core_memory) || [],
+      version: row.version,
+      system: row.system,
+      llm_config: this.deserializeJson(row.llm_config)!,
+      embedding_config: this.deserializeJson(row.embedding_config)!,
+      core_memory: this.deserializeJson(row.core_memory) || [],
       messages: this.deserializeJson(row.messages) || [],
-      inContextMessageIndices: this.deserializeJson(row.in_context_message_indices) || undefined,
-      messageBufferAutoclear: row.message_buffer_autoclear === 1,
+      in_context_message_indices: this.deserializeJson(row.in_context_message_indices) || [],
+      message_buffer_autoclear: row.message_buffer_autoclear === 1,
       tools: this.deserializeJson(row.tools) || [],
-      toolRules: this.deserializeJson(row.tool_rules) || undefined,
-      toolExecEnvironmentVariables: this.deserializeJson(row.tool_exec_environment_variables) || undefined,
-      tags: this.deserializeJson(row.tags) || undefined,
+      tool_rules: this.deserializeJson(row.tool_rules) || [],
+      tool_exec_environment_variables: this.deserializeJson(row.tool_exec_environment_variables) || [],
+      tags: this.deserializeJson(row.tags) || [],
       metadata_: this.deserializeJson(row.metadata_) || undefined,
-      multiAgentGroup: this.deserializeJson(row.multi_agent_group) || undefined,
+      multi_agent_group: this.deserializeJson(row.multi_agent_group) || undefined,
+      created_at: row.created_at,
+      updated_at: row.updated_at,
     };
   }
 
   save(agent: AgentRecord): void {
     const stmt = this.db.prepare(`
       INSERT OR REPLACE INTO agents (
-        id, name, type, status, config, metadata, root_task, session_id,
-        agent_type, description, version, system, llm_config, embedding_config,
-        core_memory, messages, in_context_message_indices, message_buffer_autoclear,
-        tools, tool_rules, tool_exec_environment_variables, tags, metadata_, multi_agent_group,
+        id, name, agent_type, description, version, system,
+        llm_config, embedding_config, core_memory, messages,
+        in_context_message_indices, message_buffer_autoclear,
+        tools, tool_rules, tool_exec_environment_variables,
+        tags, metadata_, multi_agent_group,
         created_at, updated_at
-      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
     `);
 
     stmt.run(
       agent.id,
       agent.name,
-      agent.type,
-      agent.status,
-      this.serializeJson(agent.config),
-      this.serializeJson(agent.metadata),
-      agent.rootTask || null,
-      agent.sessionId || null,
-      // Agent File (.af) format fields
-      agent.agentType || null,
+      agent.agent_type,
       agent.description || null,
-      agent.version || null,
-      agent.system || null,
-      this.serializeJson(agent.llmConfig),
-      this.serializeJson(agent.embeddingConfig),
-      this.serializeJson(agent.coreMemory),
+      agent.version,
+      agent.system,
+      this.serializeJson(agent.llm_config),
+      this.serializeJson(agent.embedding_config),
+      this.serializeJson(agent.core_memory),
       this.serializeJson(agent.messages),
-      this.serializeJson(agent.inContextMessageIndices),
-      agent.messageBufferAutoclear ? 1 : 0,
+      this.serializeJson(agent.in_context_message_indices),
+      agent.message_buffer_autoclear ? 1 : 0,
       this.serializeJson(agent.tools),
-      this.serializeJson(agent.toolRules),
-      this.serializeJson(agent.toolExecEnvironmentVariables),
+      this.serializeJson(agent.tool_rules),
+      this.serializeJson(agent.tool_exec_environment_variables),
       this.serializeJson(agent.tags),
       this.serializeJson(agent.metadata_),
-      this.serializeJson(agent.multiAgentGroup),
-      this.toTimestamp(agent.createdAt),
-      this.toTimestamp(agent.updatedAt)
+      this.serializeJson(agent.multi_agent_group),
+      agent.created_at,
+      agent.updated_at
     );
   }
 
@@ -182,28 +167,7 @@ export class AgentRepository extends BaseRepository {
     return rows.map((row) => this.rowToRecord(row));
   }
 
-  findByStatus(status: string): AgentRecord[] {
-    const stmt = this.db.prepare('SELECT * FROM agents WHERE status = ? ORDER BY created_at DESC');
-    const rows = stmt.all(status) as AgentRow[];
-
-    return rows.map((row) => this.rowToRecord(row));
-  }
-
-  findBySessionId(sessionId: string): AgentRecord[] {
-    const stmt = this.db.prepare('SELECT * FROM agents WHERE session_id = ? ORDER BY created_at ASC');
-    const rows = stmt.all(sessionId) as AgentRow[];
-
-    return rows.map((row) => this.rowToRecord(row));
-  }
-
-  updateStatus(id: string, status: string): void {
-    const stmt = this.db.prepare(`
-      UPDATE agents SET status = ?, updated_at = ? WHERE id = ?
-    `);
-    stmt.run(status, this.toTimestamp(new Date()), id);
-  }
-
-  update(id: string, updates: Partial<Omit<AgentRecord, 'id' | 'createdAt'>>): AgentRecord | null {
+  update(id: string, updates: Partial<Omit<AgentRecord, 'id' | 'created_at'>>): AgentRecord | null {
     const existing = this.findById(id);
     if (!existing) return null;
 
@@ -215,40 +179,9 @@ export class AgentRepository extends BaseRepository {
       values.push(updates.name);
     }
 
-    if (updates.type !== undefined) {
-      fields.push('type = ?');
-      values.push(updates.type);
-    }
-
-    if (updates.status !== undefined) {
-      fields.push('status = ?');
-      values.push(updates.status);
-    }
-
-    if (updates.config !== undefined) {
-      fields.push('config = ?');
-      values.push(this.serializeJson(updates.config));
-    }
-
-    if (updates.metadata !== undefined) {
-      fields.push('metadata = ?');
-      values.push(this.serializeJson(updates.metadata));
-    }
-
-    if (updates.rootTask !== undefined) {
-      fields.push('root_task = ?');
-      values.push(updates.rootTask);
-    }
-
-    if (updates.sessionId !== undefined) {
-      fields.push('session_id = ?');
-      values.push(updates.sessionId);
-    }
-
-    // Agent File (.af) format fields
-    if (updates.agentType !== undefined) {
+    if (updates.agent_type !== undefined) {
       fields.push('agent_type = ?');
-      values.push(updates.agentType);
+      values.push(updates.agent_type);
     }
 
     if (updates.description !== undefined) {
@@ -266,19 +199,19 @@ export class AgentRepository extends BaseRepository {
       values.push(updates.system);
     }
 
-    if (updates.llmConfig !== undefined) {
+    if (updates.llm_config !== undefined) {
       fields.push('llm_config = ?');
-      values.push(this.serializeJson(updates.llmConfig));
+      values.push(this.serializeJson(updates.llm_config));
     }
 
-    if (updates.embeddingConfig !== undefined) {
+    if (updates.embedding_config !== undefined) {
       fields.push('embedding_config = ?');
-      values.push(this.serializeJson(updates.embeddingConfig));
+      values.push(this.serializeJson(updates.embedding_config));
     }
 
-    if (updates.coreMemory !== undefined) {
+    if (updates.core_memory !== undefined) {
       fields.push('core_memory = ?');
-      values.push(this.serializeJson(updates.coreMemory));
+      values.push(this.serializeJson(updates.core_memory));
     }
 
     if (updates.messages !== undefined) {
@@ -286,14 +219,14 @@ export class AgentRepository extends BaseRepository {
       values.push(this.serializeJson(updates.messages));
     }
 
-    if (updates.inContextMessageIndices !== undefined) {
+    if (updates.in_context_message_indices !== undefined) {
       fields.push('in_context_message_indices = ?');
-      values.push(this.serializeJson(updates.inContextMessageIndices));
+      values.push(this.serializeJson(updates.in_context_message_indices));
     }
 
-    if (updates.messageBufferAutoclear !== undefined) {
+    if (updates.message_buffer_autoclear !== undefined) {
       fields.push('message_buffer_autoclear = ?');
-      values.push(updates.messageBufferAutoclear ? 1 : 0);
+      values.push(updates.message_buffer_autoclear ? 1 : 0);
     }
 
     if (updates.tools !== undefined) {
@@ -301,14 +234,14 @@ export class AgentRepository extends BaseRepository {
       values.push(this.serializeJson(updates.tools));
     }
 
-    if (updates.toolRules !== undefined) {
+    if (updates.tool_rules !== undefined) {
       fields.push('tool_rules = ?');
-      values.push(this.serializeJson(updates.toolRules));
+      values.push(this.serializeJson(updates.tool_rules));
     }
 
-    if (updates.toolExecEnvironmentVariables !== undefined) {
+    if (updates.tool_exec_environment_variables !== undefined) {
       fields.push('tool_exec_environment_variables = ?');
-      values.push(this.serializeJson(updates.toolExecEnvironmentVariables));
+      values.push(this.serializeJson(updates.tool_exec_environment_variables));
     }
 
     if (updates.tags !== undefined) {
@@ -321,15 +254,16 @@ export class AgentRepository extends BaseRepository {
       values.push(this.serializeJson(updates.metadata_));
     }
 
-    if (updates.multiAgentGroup !== undefined) {
+    if (updates.multi_agent_group !== undefined) {
       fields.push('multi_agent_group = ?');
-      values.push(this.serializeJson(updates.multiAgentGroup));
+      values.push(this.serializeJson(updates.multi_agent_group));
     }
 
     if (fields.length === 0) return existing;
 
+    // Always update the updated_at timestamp
     fields.push('updated_at = ?');
-    values.push(this.toTimestamp(new Date()));
+    values.push(new Date().toISOString());
     values.push(id);
 
     const sql = `UPDATE agents SET ${fields.join(', ')} WHERE id = ?`;
@@ -337,6 +271,21 @@ export class AgentRepository extends BaseRepository {
     stmt.run(...values);
 
     return this.findById(id)!;
+  }
+
+  /**
+   * Helper method to update Mosaic-specific metadata
+   */
+  updateMosaicMetadata(id: string, mosaicUpdates: Partial<MosaicMetadata>): AgentRecord | null {
+    const agent = this.findById(id);
+    if (!agent) return null;
+
+    const metadata = agent.metadata_ || {};
+    const mosaic = { ...(metadata.mosaic || {}), ...mosaicUpdates };
+
+    return this.update(id, {
+      metadata_: { ...metadata, mosaic },
+    });
   }
 
   delete(id: string): boolean {

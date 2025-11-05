@@ -135,7 +135,7 @@ npm start
 
 # 6. In a new terminal, start the frontend
 cd frontend
-npm run dev
+npm run dev 
 
 # 7. Open the dashboard
 open http://localhost:3001
