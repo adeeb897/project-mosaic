@@ -36,6 +36,7 @@ interface LangGraphAgentOptions {
   memoryManager: MemoryManager;
   maxDepth?: number;
   useE2B?: boolean; // Enable E2B code interpreter
+  sessionId?: string; // Use existing session ID or create new one
 }
 
 export class LangGraphAgent implements Agent {
@@ -80,7 +81,8 @@ export class LangGraphAgent implements Agent {
     this.maxDepth = options.maxDepth || 3;
     this.useE2B = options.useE2B ?? false;
 
-    this.sessionId = uuidv4();
+    // Use provided sessionId or create new one
+    this.sessionId = options.sessionId || uuidv4();
     this.checkpointer = new MemorySaver();
     this.agentLogger = new Logger({ agent: this.name });
 

@@ -121,6 +121,7 @@ export function createAgentRoutes(
           memoryManager,
           maxDepth: 3,
           useE2B: mosaicMeta?.config?.useE2B ?? false,
+          sessionId: mosaicMeta.sessionId,
         });
 
         // Override the generated ID with saved ID
@@ -290,6 +291,7 @@ export function createAgentRoutes(
         memoryManager,
         maxDepth: maxDepth || 3,
         useE2B: useE2B ?? false,
+        sessionId: session.id,
       });
 
       // Initialize the LangGraph agent
