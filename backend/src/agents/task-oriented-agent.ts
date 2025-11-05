@@ -90,6 +90,21 @@ export class TaskOrientedAgent implements Agent {
     this.metadata.rootTask = options.rootTask;
   }
 
+  /**
+   * Get the appropriate model based on the provider
+   */
+  private getModel(): string {
+    // Check provider type and use appropriate default
+    if (this.llmProvider.name === 'anthropic-provider') {
+      return process.env.ANTHROPIC_MODEL || 'claude-sonnet-4-5-20250929';
+    } else if (this.llmProvider.name === 'openai-provider') {
+      return process.env.OPENAI_MODEL || 'gpt-4';
+    }
+
+    // Fallback to OpenAI for unknown providers
+    return process.env.OPENAI_MODEL || 'gpt-4';
+  }
+
   async start(): Promise<void> {
     if (this.status === 'running') {
       throw new Error('Agent is already running');
@@ -346,7 +361,7 @@ IMPORTANT: This task has already been decomposed from a parent task. You should 
 
     // Use LLM to decide
     const response = await this.llmProvider.complete({
-      model: process.env.OPENAI_MODEL || 'gpt-4',
+      model: this.getModel(),
       messages: [
         {
           role: 'system',
@@ -497,7 +512,7 @@ Should this task be decomposed into sub-tasks, or executed directly?`,
 
     // Use LLM to create decomposition plan
     const response = await this.llmProvider.complete({
-      model: process.env.OPENAI_MODEL || 'gpt-4',
+      model: this.getModel(),
       messages: [
         {
           role: 'system',
@@ -830,7 +845,7 @@ What's your next action to COMPLETE this task? Respond with JSON only.`,
     ];
 
     const response = await this.llmProvider.complete({
-      model: process.env.OPENAI_MODEL || 'gpt-4',
+      model: this.getModel(),
       messages,
       temperature: 0.7,
       responseFormat: 'json',
@@ -1107,7 +1122,7 @@ Remember: You are an EXECUTOR with agency. Take action, use tools meaningfully, 
       maxDepth: this.maxDepth,
       llm: {
         provider: this.llmProvider.name,
-        model: process.env.OPENAI_MODEL || 'gpt-4',
+        model: this.getModel(),
       },
       mcpServers: Array.from(this.mcpServers.keys()),
       tools: tools,

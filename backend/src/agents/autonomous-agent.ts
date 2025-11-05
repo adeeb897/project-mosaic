@@ -75,6 +75,21 @@ export class AutonomousAgent implements Agent {
     this.metadata.createdAt = new Date().toISOString();
   }
 
+  /**
+   * Get the appropriate model based on the provider
+   */
+  private getModel(): string {
+    // Check provider type and use appropriate default
+    if (this.llmProvider.name === 'anthropic-provider') {
+      return process.env.ANTHROPIC_MODEL || 'claude-sonnet-4-5-20250929';
+    } else if (this.llmProvider.name === 'openai-provider') {
+      return process.env.OPENAI_MODEL || 'gpt-4';
+    }
+
+    // Fallback to OpenAI for unknown providers
+    return process.env.OPENAI_MODEL || 'gpt-4';
+  }
+
   async start(): Promise<void> {
     if (this.status === 'running') {
       throw new Error('Agent is already running');
@@ -292,7 +307,7 @@ export class AutonomousAgent implements Agent {
     const contextPrompt = this.buildContextPrompt(tools);
 
     const response = await this.llmProvider.complete({
-      model: process.env.OPENAI_MODEL || 'gpt-4',
+      model: this.getModel(),
       messages: [
         { role: 'system', content: systemPrompt },
         { role: 'user', content: contextPrompt },
