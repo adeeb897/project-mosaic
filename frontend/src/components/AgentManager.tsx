@@ -90,6 +90,7 @@ export function AgentManager({ onSessionSelect, realtimeEvents }: AgentManagerPr
     model: '',
     mcpServerNames: [] as string[],
     useE2B: false,
+    enableSelfConfig: false,
   });
 
   // Ref for file input
@@ -181,6 +182,7 @@ export function AgentManager({ onSessionSelect, realtimeEvents }: AgentManagerPr
         model: formData.model,
         mcpServerNames: formData.mcpServerNames,
         useE2B: formData.useE2B,
+        enableSelfConfig: formData.enableSelfConfig,
       };
 
       const response = await axios.post(getApiUrl('/api/agents'), payload);
@@ -196,6 +198,7 @@ export function AgentManager({ onSessionSelect, realtimeEvents }: AgentManagerPr
         model: defaultProvider?.models[0]?.id || '',
         mcpServerNames: [],
         useE2B: false,
+        enableSelfConfig: false,
       });
     } catch (error: any) {
       alert(`Failed to create agent: ${error.response?.data?.error || error.message}`);
@@ -516,6 +519,30 @@ export function AgentManager({ onSessionSelect, realtimeEvents }: AgentManagerPr
                   </div>
                   <div className="text-xs text-gray-500 mt-2">
                     Requires E2B_API_KEY in environment. Get yours at <a href="https://e2b.dev" target="_blank" rel="noopener noreferrer" className="text-blue-600 hover:underline">e2b.dev</a>
+                  </div>
+                </div>
+              </label>
+            </div>
+
+            {/* Self-Configuration Option */}
+            <div>
+              <label className="flex items-start gap-3 p-4 bg-gradient-to-br from-purple-50 to-pink-50 rounded-xl border-2 border-purple-200 cursor-pointer hover:border-purple-300 transition-colors">
+                <input
+                  type="checkbox"
+                  checked={formData.enableSelfConfig}
+                  onChange={(e) => setFormData({ ...formData, enableSelfConfig: e.target.checked })}
+                  className="mt-1 w-5 h-5 text-purple-600 rounded focus:ring-purple-500"
+                />
+                <div className="flex-1">
+                  <div className="flex items-center gap-2">
+                    <span className="font-semibold text-gray-900">Enable Self-Configuration</span>
+                    <span className="px-2 py-0.5 text-xs bg-purple-600 text-white rounded-full">Autonomous Setup</span>
+                  </div>
+                  <div className="text-sm text-gray-600 mt-1">
+                    Allow the agent to add and manage its own MCP server integrations. The agent can autonomously enable integrations like Slack, GitHub, Google Maps, and more when needed.
+                  </div>
+                  <div className="text-xs text-gray-500 mt-2">
+                    The agent will ask you for API keys and credentials before adding new integrations.
                   </div>
                 </div>
               </label>

@@ -78,6 +78,30 @@ export interface ToolEnvVar {
 }
 
 // ============================================================================
+// MCP Server Configuration Schemas
+// ============================================================================
+
+export interface MCPServerConfig {
+  created_at: string;
+  updated_at: string;
+  name: string;
+  description?: string;
+
+  // Server type: 'builtin' for internal servers, 'external' for stdio-based servers
+  type: 'builtin' | 'external';
+
+  // For external MCP servers (stdio-based)
+  command?: string; // e.g., 'npx', 'node', 'python'
+  args?: string[]; // e.g., ['-y', '@modelcontextprotocol/server-filesystem', '/path/to/directory']
+
+  // Environment variables for this MCP server
+  env?: Record<string, string>;
+
+  // Additional metadata
+  metadata_?: Record<string, unknown>;
+}
+
+// ============================================================================
 // Tool Rule Schemas
 // ============================================================================
 
@@ -209,6 +233,9 @@ export interface AgentFile {
   tools: Tool[];
   tool_rules?: ToolRule[];
   tool_exec_environment_variables?: ToolEnvVar[];
+
+  // MCP Server configurations
+  mcp_servers?: MCPServerConfig[];
 
   // Organization
   tags?: Tag[];

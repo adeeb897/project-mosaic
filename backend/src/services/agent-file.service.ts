@@ -19,6 +19,7 @@ import type {
   LLMConfig,
   EmbeddingConfig,
   MultiAgentGroup,
+  MCPServerConfig,
 } from '@mosaic/shared';
 
 export class AgentFileService {
@@ -59,6 +60,7 @@ export class AgentFileService {
       tools: includeTools ? agent.tools : [],
       tool_rules: agent.tool_rules,
       tool_exec_environment_variables: agent.tool_exec_environment_variables,
+      mcp_servers: agent.mcp_servers || [], // Include custom MCP server configurations
       tags: agent.tags,
       metadata_: {
         ...agent.metadata_,
@@ -117,6 +119,7 @@ export class AgentFileService {
       tools: agentFile.tools || [],
       tool_rules: agentFile.tool_rules || [],
       tool_exec_environment_variables: agentFile.tool_exec_environment_variables || [],
+      mcp_servers: agentFile.mcp_servers || [], // Import custom MCP server configurations
       tags: agentFile.tags || [],
       created_at: agentFile.created_at || now,
       updated_at: agentFile.updated_at || now,
@@ -172,6 +175,30 @@ export class AgentFileService {
 
       if (agentFile.tools && !Array.isArray(agentFile.tools)) {
         throw new Error('tools must be an array');
+      }
+
+      if (agentFile.mcp_servers && !Array.isArray(agentFile.mcp_servers)) {
+        throw new Error('mcp_servers must be an array');
+      }
+
+      // Validate MCP server configurations
+      if (agentFile.mcp_servers && Array.isArray(agentFile.mcp_servers)) {
+        for (const mcpServer of agentFile.mcp_servers) {
+          if (!mcpServer.name) {
+            throw new Error('MCP server missing name');
+          }
+          if (!mcpServer.type) {
+            throw new Error(`MCP server ${mcpServer.name} missing type`);
+          }
+          if (mcpServer.type === 'external') {
+            if (!mcpServer.command) {
+              throw new Error(`External MCP server ${mcpServer.name} missing command`);
+            }
+            if (!mcpServer.args || !Array.isArray(mcpServer.args)) {
+              throw new Error(`External MCP server ${mcpServer.name} missing or invalid args`);
+            }
+          }
+        }
       }
 
       // Validate timestamps if present

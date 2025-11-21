@@ -8,6 +8,7 @@ import axios from 'axios';
 import { getApiUrl } from '@/config/api';
 import { X, Cpu, Settings, Code, Save, Wrench, Key, Database, Plus, Trash2 } from 'lucide-react';
 import { AgentFile, CoreMemoryBlock, LLMConfig } from '@mosaic/shared';
+import { MCPServerManager } from './MCPServerManager';
 
 interface AvailableTool {
   name: string;
@@ -452,6 +453,11 @@ export function AgentConfig({ agentId, onClose }: AgentConfigProps) {
               </div>
             </div>
           )}
+
+          {/* MCP Servers */}
+          <div className="bg-gradient-to-br from-orange-50 to-amber-50 rounded-xl p-4">
+            <MCPServerManager agentId={agentId} onUpdate={fetchConfig} />
+          </div>
 
           {/* Environment Variables */}
           <div className="bg-gradient-to-br from-teal-50 to-cyan-50 rounded-xl p-4">

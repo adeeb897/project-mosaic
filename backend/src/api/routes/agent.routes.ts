@@ -6,13 +6,15 @@ import { Router } from 'express';
 import { LangGraphAgent } from '../../agents/langgraph-agent';
 import { TaskManager } from '../../services/task/task-manager.service';
 import { SessionManager } from '../../services/session/session-manager.service';
-import { LLMProviderPlugin, MCPServerPlugin } from '@mosaic/shared';
+import { LLMProviderPlugin, MCPServerPlugin, MCPServerConfig } from '@mosaic/shared';
 import { getMemoryManager } from '../../services/memory/memory-manager.service';
 import { EventBus } from '../../core/event-bus';
 import { getDatabase } from '../../persistence/database';
 import { AgentRepository } from '../../persistence/repositories/agent.repository';
 import { PluginRegistry } from '../../core/plugin-registry';
 import { AgentFileService } from '../../services/agent-file.service';
+import { ExternalMCPServer } from '../../mcp/external-mcp-server';
+import { SelfConfigMCPServer } from '../../mcp/self-config-server';
 
 export function createAgentRoutes(
   taskManager: TaskManager,
@@ -28,6 +30,106 @@ export function createAgentRoutes(
   // Initialize agent repository
   const db = getDatabase();
   const agentRepo = new AgentRepository(db.getDb());
+
+  // Helper function to create a self-config MCP server for an agent
+  const createSelfConfigServer = (agentId: string): SelfConfigMCPServer => {
+    return new SelfConfigMCPServer({
+      onAddMCPServer: async (config: MCPServerConfig) => {
+        const savedAgent = agentRepo.findById(agentId);
+        if (!savedAgent) {
+          throw new Error('Agent not found');
+        }
+
+        const existingServers = savedAgent.mcp_servers || [];
+        if (existingServers.some(s => s.name === config.name)) {
+          throw new Error(`MCP server with name "${config.name}" already exists`);
+        }
+
+        const updatedServers = [...existingServers, config];
+        const now = new Date().toISOString();
+
+        agentRepo.update(agentId, {
+          mcp_servers: updatedServers,
+          updated_at: now,
+        });
+
+        // If agent is active, initialize the server
+        const agent = activeAgents.get(agentId);
+        if (agent && config.type === 'external') {
+          const externalServer = new ExternalMCPServer({
+            name: config.name,
+            description: config.description,
+            command: config.command!,
+            args: config.args!,
+            env: config.env,
+          });
+
+          await externalServer.initialize();
+
+          const agentWithServers = agent as any;
+          if (!agentWithServers.mcpServers) {
+            agentWithServers.mcpServers = new Map();
+          }
+          agentWithServers.mcpServers.set(config.name, externalServer);
+        }
+      },
+
+      onRemoveMCPServer: async (name: string) => {
+        const savedAgent = agentRepo.findById(agentId);
+        if (!savedAgent) {
+          throw new Error('Agent not found');
+        }
+
+        const existingServers = savedAgent.mcp_servers || [];
+        const updatedServers = existingServers.filter(s => s.name !== name);
+
+        if (existingServers.length === updatedServers.length) {
+          throw new Error(`MCP server "${name}" not found`);
+        }
+
+        const now = new Date().toISOString();
+        agentRepo.update(agentId, {
+          mcp_servers: updatedServers,
+          updated_at: now,
+        });
+
+        // If agent is active, shutdown the server
+        const agent = activeAgents.get(agentId);
+        if (agent) {
+          const agentWithServers = agent as any;
+          if (agentWithServers.mcpServers?.has(name)) {
+            const server = agentWithServers.mcpServers.get(name);
+            if (server && typeof server.shutdown === 'function') {
+              await server.shutdown();
+            }
+            agentWithServers.mcpServers.delete(name);
+          }
+        }
+      },
+
+      onListMCPServers: async () => {
+        const savedAgent = agentRepo.findById(agentId);
+        if (!savedAgent) {
+          throw new Error('Agent not found');
+        }
+
+        // Return custom servers + built-in servers
+        const customServers = savedAgent.mcp_servers || [];
+        const mosaicMeta = savedAgent.metadata_?.mosaic as any;
+        const builtinServerNames = mosaicMeta?.config?.mcpServerNames || [];
+
+        const builtinServers: MCPServerConfig[] = builtinServerNames.map((name: string) => ({
+          created_at: savedAgent.created_at,
+          updated_at: savedAgent.updated_at,
+          name,
+          type: 'builtin' as const,
+          description: `Built-in ${name} server`,
+        }));
+
+        return [...builtinServers, ...customServers];
+      },
+    });
+  };
 
   // Helper function to get LLM provider from registry by name or from llm_config
   const getLLMProvider = (input?: string | { model_endpoint_type?: string; model?: string }): LLMProviderPlugin => {
@@ -96,13 +198,41 @@ export function createAgentRoutes(
         }
 
         // Restore MCP servers from metadata if available
-        let restoredMcpServers = mcpServers;
+        let restoredMcpServers: MCPServerPlugin[] = [];
+
+        // 1. Add built-in servers from metadata (legacy)
         if (mosaicMeta?.config && typeof mosaicMeta.config === 'object') {
           const config = mosaicMeta.config as { mcpServerNames?: string[]; llmProvider?: string; model?: string; useE2B?: boolean };
           if (config.mcpServerNames && Array.isArray(config.mcpServerNames)) {
             restoredMcpServers = mcpServers.filter(server =>
               config.mcpServerNames!.includes(server.name)
             );
+          }
+        } else {
+          // Default to all built-in servers
+          restoredMcpServers = [...mcpServers];
+        }
+
+        // 2. Add custom external MCP servers from mcp_servers array
+        if (savedAgent.mcp_servers && Array.isArray(savedAgent.mcp_servers)) {
+          for (const mcpServerConfig of savedAgent.mcp_servers) {
+            if (mcpServerConfig.type === 'external') {
+              try {
+                const externalServer = new ExternalMCPServer({
+                  name: mcpServerConfig.name,
+                  description: mcpServerConfig.description,
+                  command: mcpServerConfig.command!,
+                  args: mcpServerConfig.args!,
+                  env: mcpServerConfig.env,
+                });
+
+                await externalServer.initialize();
+                restoredMcpServers.push(externalServer);
+                console.log(`Restored custom MCP server: ${mcpServerConfig.name}`);
+              } catch (error) {
+                console.error(`Failed to restore custom MCP server ${mcpServerConfig.name}:`, error);
+              }
+            }
           }
         }
 
@@ -128,6 +258,17 @@ export function createAgentRoutes(
 
         // Initialize the agent
         await agent.initialize();
+
+        // Add self-config server if it was enabled
+        const config = mosaicMeta.config as { enableSelfConfig?: boolean; mcpServerNames?: string[]; useE2B?: boolean };
+        if (config.enableSelfConfig) {
+          const selfConfigServer = createSelfConfigServer(agent.id);
+          const agentWithServers = agent as any;
+          if (!agentWithServers.mcpServers) {
+            agentWithServers.mcpServers = new Map();
+          }
+          agentWithServers.mcpServers.set('self-config', selfConfigServer);
+        }
 
         // Restore status (but don't auto-start)
         agent.status = 'idle'; // Always restore as idle for safety
@@ -218,6 +359,7 @@ export function createAgentRoutes(
         llmProvider: llmProviderName,
         model,
         useE2B,
+        enableSelfConfig,
         llm_config: providedLlmConfig
       } = req.body;
 
@@ -278,7 +420,7 @@ export function createAgentRoutes(
 
       const memoryManager = getMemoryManager();
 
-      // Create LangGraph agent
+      // Create LangGraph agent (without self-config initially - we'll add it after getting the ID)
       const agent = new LangGraphAgent({
         name,
         llmProvider,
@@ -294,6 +436,16 @@ export function createAgentRoutes(
 
       // Initialize the LangGraph agent
       await agent.initialize();
+
+      // Add self-config server if enabled
+      if (enableSelfConfig) {
+        const selfConfigServer = createSelfConfigServer(agent.id);
+        const agentWithServers = agent as any;
+        if (!agentWithServers.mcpServers) {
+          agentWithServers.mcpServers = new Map();
+        }
+        agentWithServers.mcpServers.set('self-config', selfConfigServer);
+      }
 
       // Persist agent to database with .af format
       const now = new Date().toISOString();
@@ -313,6 +465,7 @@ export function createAgentRoutes(
         tools: [],
         tool_rules: [],
         tool_exec_environment_variables: [],
+        mcp_servers: [], // Initialize empty - custom servers will be added via API
         tags: [],
         metadata_: {
           mosaic: {
@@ -323,6 +476,7 @@ export function createAgentRoutes(
               ...agent.config,
               mcpServerNames: selectedMcpServers.map(s => s.name),
               useE2B,
+              enableSelfConfig: enableSelfConfig ?? false,
             },
           },
         },
@@ -1582,11 +1736,39 @@ export function createAgentRoutes(
       const memoryManager = getMemoryManager();
 
       // Filter MCP servers if specified in config
-      let selectedMcpServers = mcpServers;
+      let selectedMcpServers: MCPServerPlugin[] = [];
+
+      // 1. Add built-in servers from metadata
       if (mosaicMetadata?.config?.mcpServerNames && Array.isArray(mosaicMetadata.config.mcpServerNames)) {
         selectedMcpServers = mcpServers.filter(server =>
           mosaicMetadata.config.mcpServerNames.includes(server.name)
         );
+      } else {
+        // Default to all built-in servers
+        selectedMcpServers = [...mcpServers];
+      }
+
+      // 2. Add custom external MCP servers from imported mcp_servers array
+      if (importedAgent.mcp_servers && Array.isArray(importedAgent.mcp_servers)) {
+        for (const mcpServerConfig of importedAgent.mcp_servers) {
+          if (mcpServerConfig.type === 'external') {
+            try {
+              const externalServer = new ExternalMCPServer({
+                name: mcpServerConfig.name,
+                description: mcpServerConfig.description,
+                command: mcpServerConfig.command!,
+                args: mcpServerConfig.args!,
+                env: mcpServerConfig.env,
+              });
+
+              await externalServer.initialize();
+              selectedMcpServers.push(externalServer);
+              console.log(`Initialized imported custom MCP server: ${mcpServerConfig.name}`);
+            } catch (error) {
+              console.error(`Failed to initialize imported custom MCP server ${mcpServerConfig.name}:`, error);
+            }
+          }
+        }
       }
 
       // Access eventBus from taskManager
@@ -1625,6 +1807,258 @@ export function createAgentRoutes(
           type: agent.type,
           status: agent.status,
           message: 'Agent imported successfully',
+        },
+      });
+    } catch (error: unknown) {
+      res.status(500).json({
+        success: false,
+        error: error instanceof Error ? error.message : String(error)
+      });
+    }
+  });
+
+  // ===== Custom MCP Server Management Endpoints =====
+
+  /**
+   * GET /api/agents/:id/mcp-servers
+   * List all MCP servers for an agent (built-in + custom)
+   */
+  router.get('/:id/mcp-servers', async (req, res) => {
+    try {
+      const savedAgent = agentRepo.findById(req.params.id);
+
+      if (!savedAgent) {
+        return res.status(404).json({
+          success: false,
+          error: 'Agent not found',
+        });
+      }
+
+      // Get custom MCP servers from agent file
+      const customServers = savedAgent.mcp_servers || [];
+
+      // Get built-in servers from metadata (legacy)
+      const mosaicMeta = savedAgent.metadata_?.mosaic as any;
+      const builtinServerNames = mosaicMeta?.config?.mcpServerNames || [];
+      const builtinServers = mcpServers
+        .filter(s => builtinServerNames.includes(s.name))
+        .map(s => ({
+          name: s.name,
+          type: 'builtin' as const,
+          description: s.description || `Built-in ${s.name} server`,
+        }));
+
+      res.json({
+        success: true,
+        data: {
+          builtin: builtinServers,
+          custom: customServers,
+          all: [...builtinServers, ...customServers],
+        },
+      });
+    } catch (error: unknown) {
+      res.status(500).json({
+        success: false,
+        error: error instanceof Error ? error.message : String(error)
+      });
+    }
+  });
+
+  /**
+   * POST /api/agents/:id/mcp-servers
+   * Add a custom MCP server to an agent
+   */
+  router.post('/:id/mcp-servers', async (req, res) => {
+    try {
+      const agent = activeAgents.get(req.params.id);
+
+      if (!agent) {
+        return res.status(404).json({
+          success: false,
+          error: 'Agent not found or not active',
+        });
+      }
+
+      if (agent.status === 'running') {
+        return res.status(400).json({
+          success: false,
+          error: 'Cannot add MCP server while agent is running. Stop the agent first.',
+        });
+      }
+
+      const { name, description, command, args, env } = req.body;
+
+      if (!name || !command || !args || !Array.isArray(args)) {
+        return res.status(400).json({
+          success: false,
+          error: 'Missing required fields: name, command, args (array)',
+        });
+      }
+
+      // Get current agent from database
+      const savedAgent = agentRepo.findById(req.params.id);
+      if (!savedAgent) {
+        return res.status(404).json({
+          success: false,
+          error: 'Agent not found in database',
+        });
+      }
+
+      // Check if server with same name already exists
+      const existingServers = savedAgent.mcp_servers || [];
+      if (existingServers.some(s => s.name === name)) {
+        return res.status(400).json({
+          success: false,
+          error: `MCP server with name "${name}" already exists`,
+        });
+      }
+
+      // Create MCP server config
+      const now = new Date().toISOString();
+      const mcpServerConfig: MCPServerConfig = {
+        created_at: now,
+        updated_at: now,
+        name,
+        description,
+        type: 'external',
+        command,
+        args,
+        env: env || {},
+      };
+
+      // Add to agent's mcp_servers array
+      const updatedServers = [...existingServers, mcpServerConfig];
+
+      // Update in database
+      agentRepo.update(req.params.id, {
+        mcp_servers: updatedServers,
+        updated_at: now,
+      });
+
+      // Initialize the external MCP server
+      try {
+        const externalServer = new ExternalMCPServer({
+          name,
+          description,
+          command,
+          args,
+          env: env || {},
+        });
+
+        await externalServer.initialize();
+
+        // Add to active agent's MCP servers
+        const agentWithServers = agent as any;
+        if (!agentWithServers.mcpServers) {
+          agentWithServers.mcpServers = new Map();
+        }
+        agentWithServers.mcpServers.set(name, externalServer);
+
+        res.json({
+          success: true,
+          data: {
+            message: `Successfully added MCP server "${name}"`,
+            server: mcpServerConfig,
+            tools: externalServer.getTools().map(t => ({
+              name: t.name,
+              description: t.description,
+            })),
+          },
+        });
+      } catch (initError) {
+        // Rollback database change if initialization fails
+        agentRepo.update(req.params.id, {
+          mcp_servers: existingServers,
+        });
+
+        throw new Error(`Failed to initialize MCP server: ${initError instanceof Error ? initError.message : String(initError)}`);
+      }
+    } catch (error: unknown) {
+      res.status(500).json({
+        success: false,
+        error: error instanceof Error ? error.message : String(error)
+      });
+    }
+  });
+
+  /**
+   * DELETE /api/agents/:id/mcp-servers/:serverName
+   * Remove a custom MCP server from an agent
+   */
+  router.delete('/:id/mcp-servers/:serverName', async (req, res) => {
+    try {
+      const agent = activeAgents.get(req.params.id);
+
+      if (!agent) {
+        return res.status(404).json({
+          success: false,
+          error: 'Agent not found or not active',
+        });
+      }
+
+      if (agent.status === 'running') {
+        return res.status(400).json({
+          success: false,
+          error: 'Cannot remove MCP server while agent is running. Stop the agent first.',
+        });
+      }
+
+      const { serverName } = req.params;
+
+      // Get current agent from database
+      const savedAgent = agentRepo.findById(req.params.id);
+      if (!savedAgent) {
+        return res.status(404).json({
+          success: false,
+          error: 'Agent not found in database',
+        });
+      }
+
+      // Check if it's a built-in server (can't be removed)
+      const mosaicMeta = savedAgent.metadata_?.mosaic as any;
+      const builtinServerNames = mosaicMeta?.config?.mcpServerNames || [];
+      if (builtinServerNames.includes(serverName)) {
+        return res.status(400).json({
+          success: false,
+          error: `Cannot remove built-in MCP server "${serverName}". Use PATCH /api/agents/:id/config to modify built-in servers.`,
+        });
+      }
+
+      // Remove from mcp_servers array
+      const existingServers = savedAgent.mcp_servers || [];
+      const updatedServers = existingServers.filter(s => s.name !== serverName);
+
+      if (existingServers.length === updatedServers.length) {
+        return res.status(404).json({
+          success: false,
+          error: `MCP server "${serverName}" not found`,
+        });
+      }
+
+      // Update in database
+      const now = new Date().toISOString();
+      agentRepo.update(req.params.id, {
+        mcp_servers: updatedServers,
+        updated_at: now,
+      });
+
+      // Remove from active agent
+      const agentWithServers = agent as any;
+      if (agentWithServers.mcpServers?.has(serverName)) {
+        const server = agentWithServers.mcpServers.get(serverName);
+
+        // Shutdown external server if it has a shutdown method
+        if (server && typeof server.shutdown === 'function') {
+          await server.shutdown();
+        }
+
+        agentWithServers.mcpServers.delete(serverName);
+      }
+
+      res.json({
+        success: true,
+        data: {
+          message: `Successfully removed MCP server "${serverName}"`,
         },
       });
     } catch (error: unknown) {
